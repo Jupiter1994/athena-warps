@@ -223,18 +223,20 @@ void DiskInnerX1(MeshBlock *pmb,Coordinates *pco, AthenaArray<Real> &prim, FaceF
                  int il, int iu, int jl, int ju, int kl, int ku, int ngh) {
   Real rad(0.0), phi(0.0), z(0.0);
   Real vel;
+  Real rad_gh; // radius at ghost cell
   OrbitalVelocityFunc &vK = pmb->porb->OrbitalVelocity;
   if (std::strcmp(COORDINATE_SYSTEM, "cylindrical") == 0) {
     for (int k=kl; k<=ku; ++k) {
       for (int j=jl; j<=ju; ++j) {
         for (int i=1; i<=ngh; ++i) {
-          GetCylCoord(pco,rad,phi,z,il-i,j,k);
-          prim(IDN,k,j,il-i) = DenProfileCyl(rad,phi,z);
-          vel = VelProfileCyl(rad,phi,z);
+          GetCylCoord(pco,rad_gh,phi,z,il-i,j,k);
+	  GetCylCoord(pco,rad,phi,z,il,j,k);
+          prim(IDN,k,j,il-i) = prim(IDN,k,j,il) * std::pow(rad_gh/rad,-1.5);
+          vel = VelProfileCyl(rad,phi,z); // not used
           if (pmb->porb->orbital_advection_defined)
             vel -= vK(pmb->porb, pco->x1v(il-i), pco->x2v(j), pco->x3v(k));
-          prim(IM1,k,j,il-i) = 0.0;
-          prim(IM2,k,j,il-i) = vel;
+          prim(IM1,k,j,il-i) = prim(IM1,k,j,il) * std::pow(rad_gh/rad,-0.5) ;
+          prim(IM2,k,j,il-i) = prim(IM2,k,j,il) * std::pow(rad_gh/rad,-0.5);
           prim(IM3,k,j,il-i) = 0.0;
           if (NON_BAROTROPIC_EOS)
             prim(IEN,k,j,il-i) = PoverR(rad, phi, z)*prim(IDN,k,j,il-i);
@@ -268,19 +270,21 @@ void DiskOuterX1(MeshBlock *pmb,Coordinates *pco, AthenaArray<Real> &prim, FaceF
                  Real time, Real dt,
                  int il, int iu, int jl, int ju, int kl, int ku, int ngh) {
   Real rad(0.0), phi(0.0), z(0.0);
+  Real rad_gh;
   Real vel;
   OrbitalVelocityFunc &vK = pmb->porb->OrbitalVelocity;
   if (std::strcmp(COORDINATE_SYSTEM, "cylindrical") == 0) {
     for (int k=kl; k<=ku; ++k) {
       for (int j=jl; j<=ju; ++j) {
         for (int i=1; i<=ngh; ++i) {
-          GetCylCoord(pco,rad,phi,z,iu+i,j,k);
-          prim(IDN,k,j,iu+i) = DenProfileCyl(rad,phi,z);
-          vel = VelProfileCyl(rad,phi,z);
+          GetCylCoord(pco,rad_gh,phi,z,iu+i,j,k);
+	  GetCylCoord(pco,rad,phi,z,iu,j,k);
+          prim(IDN,k,j,iu+i) = prim(IDN,k,j,iu) * std::pow(rad_gh/rad,-1.5);
+          vel = VelProfileCyl(rad,phi,z); // ignore for now
           if (pmb->porb->orbital_advection_defined)
             vel -= vK(pmb->porb, pco->x1v(iu+i), pco->x2v(j), pco->x3v(k));
-          prim(IM1,k,j,iu+i) = 0.0;
-          prim(IM2,k,j,iu+i) = vel;
+          prim(IM1,k,j,iu+i) = prim(IM1,k,j,iu) * std::pow(rad_gh/rad,-0.5);
+          prim(IM2,k,j,iu+i) = prim(IM2,k,j,iu) * std::pow(rad_gh/rad,-0.5);
           prim(IM3,k,j,iu+i) = 0.0;
           if (NON_BAROTROPIC_EOS)
             prim(IEN,k,j,iu+i) = PoverR(rad, phi, z)*prim(IDN,k,j,iu+i);

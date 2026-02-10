@@ -4,22 +4,27 @@ reference =
 configure = --prob=disk --coord=spherical_polar
 
 <job>
-problem_id  = disk      # problem ID: basename of output filenames
+problem_id  = /scratch/phn2956/disk-sph-test/disk      # problem ID: basename of output filenames
 
-<output1>
-file_type   = hdf5      # vtk
-variable    = cons      #
+<output1> 
+file_type   = hdf5      # default: vtk output
+variable    = prim      # prim or cons
 dt          = 6.28      # time increment between outputs
+ghost_zones = 1         # default = false 
 
 <output2>
 file_type   = hst       # History data dump
-dt          = 0.0628    # time increment between outputs
+dt          = 62.8      # 0.0628    # time increment between outputs
+
+<output3>
+file_type   = rst       # Restart data dump
+dt          = 6.28      # time increment between outputs
 
 <time>
 cfl_number  = 0.3       # The Courant, Friedrichs, & Lewy (CFL) Number
 nlim        = -1        # cycle limit
-tlim        = 628.      # time limit
-integrator  = vl2       # time integration algorithm
+tlim        = 628.      # time limit; 6280 in Jiaru's sim
+integrator  = rk2 # vl2       # time integration algorithm
 xorder      = 2         # order of spatial reconstruction
 ncycle_out  = 1         # interval for stdout summary info
 
@@ -35,8 +40,8 @@ nx2         = 256 # 32        # Number of zones in X2-direction
 # theta half-width = 0.24
 x2min       = 1.3308    # 1.2458    # minimum value of X2
 x2max       = 1.8108    # 1.8958    # maximum value of X2
-ix2_bc      = user      # Inner-X2 boundary condition flag
-ox2_bc      = user      # Outer-X2 boundary condition flag
+ix2_bc      = reflecting      # Inner-X2 boundary condition flag
+ox2_bc      = reflecting      # Outer-X2 boundary condition flag
 
 nx3         = 260 # 256            # Number of zones in X3-direction
 x3min       = 0.0            # minimum value of X3
@@ -44,18 +49,18 @@ x3max       = 6.2831853071795862  # maximum value of X3
 ix3_bc      = periodic       # Inner-X3 boundary condition flag
 ox3_bc      = periodic       # Outer-X3 boundary condition flag
 
-refinement  = None
+# refinement  = None
 
 <meshblock>
-nx1        = 4         # Number of zones per MeshBlock in X1-direction
-nx2        = 8         # Number of zones per MeshBlock in X2-direction
-nx3        = 13         # Number of zones per MeshBlock in X3-direction
+nx1        = 64         # Number of zones per MeshBlock in X1-direction
+nx2        = 32         # Number of zones per MeshBlock in X2-direction
+nx3        = 20         # Number of zones per MeshBlock in X3-direction
 
 <hydro>
 gamma           = 1.66666667 # gamma = C_p/C_v
-iso_sound_speed = 0.1        # isothermal sound speed
-dfloor          = 1.e-9
-pfloor          = 1.e-12
+iso_sound_speed = 0.02 # 0.1        # isothermal sound speed
+dfloor          = 1.e-10        #  1.e-9
+pfloor          = 1.e-14        # 1.e-12       
 
 <orbital_advection>
 OAorder     = 0   # 0: w/o OA, 1: w/ OA (1st), 2: w/ OA (2nd)
@@ -65,6 +70,22 @@ Omega0      = 0.0 # angular velocity of the system
 GM          = 1.0
 r0          = 1.0
 rho0        = 1.0
-p0_over_r0  = 0.01
-pslope      = -0.5
-dslope      = -2.25
+p0_over_r0  = 0.0004
+dslope      = -3.0
+pslope      = 0.0
+r_1         = 1.0
+r_2         = 3.0
+xi_1        = 0.0
+xi_2        = 0.0
+W_in        = 0.0
+W_out       = 0.033
+alpha_0     = 0.001
+depth_gap   = 19.0
+r_gap_a     = 1.0
+r_gap_b     = 2.0
+del_a       = 0.1
+del_b       = 0.2
+dWdt        = 0.00001
+dpdt        = 0.0
+time_fix    = 9999999
+nu_iso      = 0.1      # isotropic viscosity coefficient
