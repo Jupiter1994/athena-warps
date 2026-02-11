@@ -43,6 +43,7 @@ Real VelProfileCyl(const Real rad, const Real phi, const Real z);
 Real gm0, r0, rho0, dslope, p0_over_r0, pslope, gamma_gas;
 Real dfloor;
 Real Omega0;
+Real alpha_const; // alpha viscosity parameter
 } // namespace
 
 // User-defined boundary conditions for disk simulations
@@ -64,6 +65,9 @@ void DiskInnerX3(MeshBlock *pmb, Coordinates *pco, AthenaArray<Real> &prim,FaceF
 void DiskOuterX3(MeshBlock *pmb, Coordinates *pco, AthenaArray<Real> &prim,FaceField &b,
                  Real time, Real dt,
                  int il, int iu, int jl, int ju, int kl, int ku, int ngh);
+void alpha_viscosity(HydroDiffusion *phdif, MeshBlock *pmb,
+              const AthenaArray<Real> &prim,const AthenaArray<Real> &bcc,
+              int is, int ie, int js, int je,int ks, int ke);
 
 //========================================================================================
 //! \fn void Mesh::InitUserMeshData(ParameterInput *pin)
@@ -80,6 +84,9 @@ void Mesh::InitUserMeshData(ParameterInput *pin) {
   // Get parameters for initial density and velocity
   rho0 = pin->GetReal("problem","rho0");
   dslope = pin->GetOrAddReal("problem","dslope",0.0);
+
+  // Get parameter for viscosity
+  alpha_const = pin->GetReal("problem","alpha_const",0.0);
 
   // Get parameters of initial pressure and cooling parameters
   if (NON_BAROTROPIC_EOS) {
@@ -113,6 +120,9 @@ void Mesh::InitUserMeshData(ParameterInput *pin) {
   if (mesh_bcs[BoundaryFace::outer_x3] == GetBoundaryFlag("user")) {
     EnrollUserBoundaryFunction(BoundaryFace::outer_x3, DiskOuterX3);
   }
+
+  // enroll user-defined viscosity
+  EnrollViscosityCoefficient(alpha_viscosity);
 
   return;
 }
@@ -161,6 +171,34 @@ void MeshBlock::ProblemGenerator(ParameterInput *pin) {
     }
   }
 
+  return;
+}
+
+//----------------------------------------------------------------------------------------
+//! alpha viscosity
+
+void alpha_viscosity(HydroDiffusion *phdif, MeshBlock *pmb,
+              const AthenaArray<Real> &prim,const AthenaArray<Real> &bcc,
+              int is, int ie, int js, int je,int ks, int ke){
+  Real rad(0.0), phi(0.0), z(0.0);
+  Real cs2, vK, nu_v;
+  //for (int k = pmb->ks; k <= pmb->ke; ++k) {
+  for (int k = pmb->ks-2; k <= pmb->ke+2; ++k) {
+    for (int j = pmb->js-2; j <= pmb->je+2; ++j) {
+#pragma omp simd
+      for (int i = pmb->is-2; i <= pmb->ie+2; ++i) {
+        GetCylCoord(pmb->pcoord,rad,phi,z,i,j,k);
+        rad   = std::sqrt(rad*rad+z*z);
+        cs2   = p0_over_r0 * std::pow(rad, pslope); // * (1 + 0.5*pslope*std::pow(z/rad,2));
+        vK    = std::sqrt(gm0/rad);
+        //alpha_R = alphaProfile(0.5*(r_gap_a+r_gap_b),phi,z);
+        nu_v  = alpha_const* cs2 / (vK/rad);
+        //nu_v  = alpha_0* cs2 / (vK/rad);
+        //printf("%1.9f \n",nu_v);
+        phdif->nu(HydroDiffusion::DiffProcess::iso,k,j,i) = nu_v;
+      }
+    }
+  }
   return;
 }
 
