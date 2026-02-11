@@ -4,21 +4,21 @@ reference =
 configure = --prob=disk --coord=cylindrical
 o
 <job>
-problem_id  = /scratch/phn2956/disk-cyl-alpha/disk      # problem ID: basename of output filenames
+problem_id  = /scratch/phn2956/disk-cyl-alpha-BCs/disk      # problem ID: basename of output filenames
 
 <output1>
 file_type   = hdf5       # HDF5 data dump
 variable    = cons      #
-dt          = 628      # 1  # time increment between outputs
+dt          = 6.28      # 1  # time increment between outputs
 
 <output2>
 file_type   = hst       # History data dump
-dt          = 6.28    # time increment between outputs
+dt          = .628    # time increment between outputs
 
 <time>
 cfl_number  = 0.3       # The Courant, Friedrichs, & Lewy (CFL) Number
 nlim        = -1        # cycle limit
-tlim        = 62800. #      # time limit
+tlim        = 628. #      # time limit
 integrator  = vl2       # time integration algorithm
 xorder      = 2         # order of spatial reconstruction
 ncycle_out  = 1         # interval for stdout summary info

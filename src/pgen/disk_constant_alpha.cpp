@@ -86,7 +86,7 @@ void Mesh::InitUserMeshData(ParameterInput *pin) {
   dslope = pin->GetOrAddReal("problem","dslope",0.0);
 
   // Get parameter for viscosity
-  alpha_const = pin->GetReal("problem","alpha_const",0.0);
+  alpha_const = pin->GetReal("problem","alpha_const");
 
   // Get parameters of initial pressure and cooling parameters
   if (NON_BAROTROPIC_EOS) {
