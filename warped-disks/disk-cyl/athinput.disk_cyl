@@ -4,7 +4,7 @@ reference =
 configure = --prob=disk --coord=cylindrical
 
 <job>
-problem_id  = /scratch/phn2956/disk-cyl-BCs-only/disk      # problem ID: basename of output filenames
+problem_id  = /scratch/phn2956/disk-cyl-alpha-BCs/disk      # problem ID: basename of output filenames
 
 <output1>
 file_type   = hdf5       # HDF5 data dump
@@ -17,7 +17,7 @@ dt          = .628    # time increment between outputs
 
 <time>
 cfl_number  = 0.3       # The Courant, Friedrichs, & Lewy (CFL) Number
-nlim        = 1        # cycle limit
+nlim        = -1        # cycle limit
 tlim        = 6280. #      # time limit
 integrator  = vl2       # time integration algorithm
 xorder      = 2         # order of spatial reconstruction
@@ -64,8 +64,9 @@ Omega0      = 0.0 # angular velocity of the system
 GM          = 1.0
 r0          = 1.0
 rho0        = 1.0
-p0_over_r0  = 0.0025
-p0overr0    = 0.0025
+# p0_over_r0  = 0.0025    # c^2
+# p0overr0    = 0.0025
 pslope      = 0.
-dslope      = -2.25
-alpha_const = 0.
+dslope      = -2.25  # exponent in density power law; -1.5 is steady state for viscous disk
+alpha_const = 0.2    # viscosity parameter
+nu_iso = 0.2  # not used, but NEEDS to be nonzero for Athena++ to actually turn on viscosity

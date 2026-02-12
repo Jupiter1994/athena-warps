@@ -182,12 +182,15 @@ void alpha_viscosity(HydroDiffusion *phdif, MeshBlock *pmb,
               int is, int ie, int js, int je,int ks, int ke){
   Real rad(0.0), phi(0.0), z(0.0);
   Real cs2, vK, nu_v;
-  //for (int k = pmb->ks; k <= pmb->ke; ++k) {
-  for (int k = pmb->ks-2; k <= pmb->ke+2; ++k) {
+  for (int k = pmb->ks; k <= pmb->ke; ++k) {
+  // for (int k = pmb->ks-2; k <= pmb->ke+2; ++k) {
     for (int j = pmb->js-2; j <= pmb->je+2; ++j) {
 #pragma omp simd
       for (int i = pmb->is-2; i <= pmb->ie+2; ++i) {
-        GetCylCoord(pmb->pcoord,rad,phi,z,i,j,k);
+       // printf("i= %1d \n", i);
+        //printf("j=%1d \n",j);
+	//printf("k=%1d \n",k);
+	GetCylCoord(pmb->pcoord,rad,phi,z,i,j,k);
         rad   = std::sqrt(rad*rad+z*z);
         cs2   = p0_over_r0 * std::pow(rad, pslope); // * (1 + 0.5*pslope*std::pow(z/rad,2));
         vK    = std::sqrt(gm0/rad);
@@ -200,7 +203,7 @@ void alpha_viscosity(HydroDiffusion *phdif, MeshBlock *pmb,
     }
   }
 
-  printf("alpha_viscosity called");
+ //  printf("alpha_viscosity called");
 
   return;
 }
@@ -266,6 +269,9 @@ void DiskInnerX1(MeshBlock *pmb,Coordinates *pco, AthenaArray<Real> &prim, FaceF
   Real vel;
   Real rad_gh; // radius at ghost cell
   OrbitalVelocityFunc &vK = pmb->porb->OrbitalVelocity;
+  
+  // printf("ngh= %1d \n", ngh);
+
   if (std::strcmp(COORDINATE_SYSTEM, "cylindrical") == 0) {
     for (int k=kl; k<=ku; ++k) {
       for (int j=jl; j<=ju; ++j) {
