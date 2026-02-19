@@ -16,7 +16,7 @@ module load mpi/intel-mpi-5.1.3.258
 module load hdf5/1.10.7-openmpi-intel-2021.4.0
 
 # configure problem
-python ../../configure.py --prob=disk --coord=cylindrical --eos=isothermal -hdf5 -h5double -mpi --hdf5_path /hpc/software/spack_v20d1/spack/opt/spack/linux-rhel7-x86_64/intel-2021.4.0/hdf5-1.10.7-exmishiaff3ugqbeeimkqvnwrir76sxh -omp --cflag=-qno-openmp-simd
+python ../../configure.py --prob=disk_constant_alpha --coord=cylindrical --eos=isothermal --flux llf -hdf5 -h5double -mpi --hdf5_path /hpc/software/spack_v20d1/spack/opt/spack/linux-rhel7-x86_64/intel-2021.4.0/hdf5-1.10.7-exmishiaff3ugqbeeimkqvnwrir76sxh -omp --cflag=-qno-openmp-simd
 make clean
 make -j 4
 
