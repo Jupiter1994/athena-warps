@@ -182,27 +182,50 @@ void alpha_viscosity(HydroDiffusion *phdif, MeshBlock *pmb,
               int is, int ie, int js, int je,int ks, int ke){
   Real rad(0.0), phi(0.0), z(0.0);
   Real cs2, vK, nu_v;
-  for (int k = pmb->ks; k <= pmb->ke; ++k) {
-  // for (int k = pmb->ks-2; k <= pmb->ke+2; ++k) {
-    for (int j = pmb->js-2; j <= pmb->je+2; ++j) {
-#pragma omp simd
-      for (int i = pmb->is-2; i <= pmb->ie+2; ++i) {
-       // printf("i= %1d \n", i);
-        //printf("j=%1d \n",j);
-	//printf("k=%1d \n",k);
-	GetCylCoord(pmb->pcoord,rad,phi,z,i,j,k);
-        rad   = std::sqrt(rad*rad+z*z);
-        cs2   = p0_over_r0 * std::pow(rad, pslope); // * (1 + 0.5*pslope*std::pow(z/rad,2));
-        vK    = std::sqrt(gm0/rad);
-        //alpha_R = alphaProfile(0.5*(r_gap_a+r_gap_b),phi,z);
-        nu_v  = alpha_const* cs2 / (vK/rad);
-        //nu_v  = alpha_0* cs2 / (vK/rad);
-        //printf("%1.9f \n",nu_v);
-        phdif->nu(HydroDiffusion::DiffProcess::iso,k,j,i) = nu_v;
-      }
-    }
-  }
 
+  if (std::strcmp(COORDINATE_SYSTEM, "cylindrical") == 0) {
+	  for (int k = pmb->ks; k <= pmb->ke; ++k) {
+	  // for (int k = pmb->ks-2; k <= pmb->ke+2; ++k) {
+	    for (int j = pmb->js-2; j <= pmb->je+2; ++j) {
+	#pragma omp simd
+	      for (int i = pmb->is-2; i <= pmb->ie+2; ++i) {
+	       // printf("i= %1d \n", i);
+	        //printf("j=%1d \n",j);
+	        //printf("k=%1d \n",k);
+	        GetCylCoord(pmb->pcoord,rad,phi,z,i,j,k);
+	        rad   = std::sqrt(rad*rad+z*z);
+	        cs2   = p0_over_r0 * std::pow(rad, pslope); // * (1 + 0.5*pslope*std::pow(z/rad,2));
+	        vK    = std::sqrt(gm0/rad);
+	        //alpha_R = alphaProfile(0.5*(r_gap_a+r_gap_b),phi,z);
+		nu_v  = alpha_const* cs2 / (vK/rad);
+	        //nu_v  = alpha_0* cs2 / (vK/rad);
+	        //printf("%1.9f \n",nu_v);
+	        phdif->nu(HydroDiffusion::DiffProcess::iso,k,j,i) = nu_v;
+	      }
+	    }
+	  }
+  } else if (std::strcmp(COORDINATE_SYSTEM, "spherical_polar") == 0) {
+	 //  for (int k = pmb->ks; k <= pmb->ke; ++k) {
+	  for (int k = pmb->ks-2; k <= pmb->ke+2; ++k) {
+	    for (int j = pmb->js-2; j <= pmb->je+2; ++j) {
+	#pragma omp simd
+	      for (int i = pmb->is-2; i <= pmb->ie+2; ++i) {
+	       // printf("i= %1d \n", i);
+	        //printf("j=%1d \n",j);
+		//printf("k=%1d \n",k);
+		GetCylCoord(pmb->pcoord,rad,phi,z,i,j,k);
+	        rad   = std::sqrt(rad*rad+z*z);
+	        cs2   = p0_over_r0 * std::pow(rad, pslope); // * (1 + 0.5*pslope*std::pow(z/rad,2));
+	        vK    = std::sqrt(gm0/rad);
+	        //alpha_R = alphaProfile(0.5*(r_gap_a+r_gap_b),phi,z);
+	        nu_v  = alpha_const* cs2 / (vK/rad);
+	        //nu_v  = alpha_0* cs2 / (vK/rad);
+	        //printf("%1.9f \n",nu_v);
+	        phdif->nu(HydroDiffusion::DiffProcess::iso,k,j,i) = nu_v;
+	      }
+	    }
+	  }
+   }
  //  printf("alpha_viscosity called");
 
   return;
@@ -267,7 +290,8 @@ void DiskInnerX1(MeshBlock *pmb,Coordinates *pco, AthenaArray<Real> &prim, FaceF
                  int il, int iu, int jl, int ju, int kl, int ku, int ngh) {
   Real rad(0.0), phi(0.0), z(0.0);
   Real vel;
-  Real rad_gh; // radius at ghost cell
+  Real rad_gh; // cylindrical radius at ghost cell
+  Real r, r_gh; // spherical radii of last active and ghost cells, respectively
   OrbitalVelocityFunc &vK = pmb->porb->OrbitalVelocity;
   
   // printf("ngh= %1d \n", ngh);
@@ -294,14 +318,16 @@ void DiskInnerX1(MeshBlock *pmb,Coordinates *pco, AthenaArray<Real> &prim, FaceF
     for (int k=kl; k<=ku; ++k) {
       for (int j=jl; j<=ju; ++j) {
         for (int i=1; i<=ngh; ++i) {
-          GetCylCoord(pco,rad,phi,z,il-i,j,k);
-          prim(IDN,k,j,il-i) = DenProfileCyl(rad,phi,z);
-          vel = VelProfileCyl(rad,phi,z);
+          r = pco->x1v(il);
+	  r_gh = pco->x1v(il-i);
+
+          prim(IDN,k,j,il-i) = prim(IDN,k,j,il) * std::pow(r_gh/r,-1.5);
+          // vel = VelProfileCyl(rad,phi,z);
           if (pmb->porb->orbital_advection_defined)
             vel -= vK(pmb->porb, pco->x1v(il-i), pco->x2v(j), pco->x3v(k));
-          prim(IM1,k,j,il-i) = 0.0;
-          prim(IM2,k,j,il-i) = 0.0;
-          prim(IM3,k,j,il-i) = vel;
+          prim(IM1,k,j,il-i) = prim(IM1,k,j,il) * std::pow(r_gh/r,0.5); // v_r
+          prim(IM2,k,j,il-i) = 0.0; // v_theta
+          prim(IM3,k,j,il-i) = prim(IM3,k,j,il) * std::pow(r_gh/r,-0.5); // v_phi
           if (NON_BAROTROPIC_EOS)
             prim(IEN,k,j,il-i) = PoverR(rad, phi, z)*prim(IDN,k,j,il-i);
         }
@@ -318,6 +344,7 @@ void DiskOuterX1(MeshBlock *pmb,Coordinates *pco, AthenaArray<Real> &prim, FaceF
                  int il, int iu, int jl, int ju, int kl, int ku, int ngh) {
   Real rad(0.0), phi(0.0), z(0.0);
   Real rad_gh;
+  Real r, r_gh; // spherical radii of last active and ghost cells, respectively
   Real vel;
   OrbitalVelocityFunc &vK = pmb->porb->OrbitalVelocity;
   if (std::strcmp(COORDINATE_SYSTEM, "cylindrical") == 0) {
@@ -342,14 +369,17 @@ void DiskOuterX1(MeshBlock *pmb,Coordinates *pco, AthenaArray<Real> &prim, FaceF
     for (int k=kl; k<=ku; ++k) {
       for (int j=jl; j<=ju; ++j) {
         for (int i=1; i<=ngh; ++i) {
-          GetCylCoord(pco,rad,phi,z,iu+i,j,k);
-          prim(IDN,k,j,iu+i) = DenProfileCyl(rad,phi,z);
-          vel = VelProfileCyl(rad,phi,z);
+          // GetCylCoord(pco,rad,phi,z,iu+i,j,k);
+          r = pco->x1v(iu);
+          r_gh = pco->x1v(iu+i);
+
+          prim(IDN,k,j,iu+i) = prim(IDN,k,j,iu) * std::pow(r_gh/r,-1.5);
+          // vel = VelProfileCyl(rad,phi,z);
           if (pmb->porb->orbital_advection_defined)
             vel -= vK(pmb->porb, pco->x1v(iu+i), pco->x2v(j), pco->x3v(k));
-          prim(IM1,k,j,iu+i) = 0.0;
-          prim(IM2,k,j,iu+i) = 0.0;
-          prim(IM3,k,j,iu+i) = vel;
+          prim(IM1,k,j,iu+i) = prim(IM1,k,j,iu) * std::pow(r_gh/r,0.5); // v_r
+          prim(IM2,k,j,iu+i) = 0.0; // v_theta
+          prim(IM3,k,j,iu+i) = prim(IM3,k,j,iu) * std::pow(r_gh/r,-0.5); // v_phi
           if (NON_BAROTROPIC_EOS)
             prim(IEN,k,j,iu+i) = PoverR(rad, phi, z)*prim(IDN,k,j,iu+i);
         }
