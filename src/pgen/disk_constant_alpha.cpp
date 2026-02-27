@@ -369,11 +369,12 @@ void DiskOuterX1(MeshBlock *pmb,Coordinates *pco, AthenaArray<Real> &prim, FaceF
     for (int k=kl; k<=ku; ++k) {
       for (int j=jl; j<=ju; ++j) {
         for (int i=1; i<=ngh; ++i) {
-          // GetCylCoord(pco,rad,phi,z,iu+i,j,k);
+          GetCylCoord(pco,rad_gh,phi,z,iu+i,j,k);
           r = pco->x1v(iu);
           r_gh = pco->x1v(iu+i);
 
-          prim(IDN,k,j,iu+i) = prim(IDN,k,j,iu) * std::pow(r_gh/r,-1.5);
+          //prim(IDN,k,j,iu+i) = prim(IDN,k,j,iu) * std::pow(r_gh/r,-1.5);
+	  prim(IDN,k,j,iu+i) = DenProfileCyl(rad_gh,phi,z); // hold the outer rho fixed
           // vel = VelProfileCyl(rad,phi,z);
           if (pmb->porb->orbital_advection_defined)
             vel -= vK(pmb->porb, pco->x1v(iu+i), pco->x2v(j), pco->x3v(k));
