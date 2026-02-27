@@ -4,8 +4,8 @@
 #SBATCH --time=3:00:00 ## Required: How long will the job need to run (remember different partitions have restrictions on this parameter)
 #SBATCH --nodes=1 ## how many computers/nodes do you need (no default)
 #SBATCH --ntasks-per-node=32 ## how many cpus or processors do you need on per computer/node (default value 1)
-#SBATCH --mem=2G ## how much RAM do you need per computer/node (this affects your FairShare score so be careful to not ask for more than you need))
-#SBATCH --job-name=disk-sph1 ## When you run squeue -u
+#SBATCH --mem=3G ## how much RAM do you need per computer/node (this affects your FairShare score so be careful to not ask for more than you need))
+#SBATCH --job-name=disk-sph2 ## When you run squeue -u
 #SBATCH --mail-type=ALL
 #SBATCH --mail-user=jupiterding2029@u.northwestern.edu
 
@@ -28,7 +28,7 @@ module load hdf5/1.10.7-openmpi-intel-2021.4.0
 # cd warped-disks/disk-sph
 
 ## run the sim
-#mpiexec -n ${SLURM_NTASKS} ../../bin/athena -i athinput.disk_sph
+mpiexec -n ${SLURM_NTASKS} ../../bin/athena -i athinput.disk_sph
 ## run the below line if restarting the sim
-mpiexec -n ${SLURM_NTASKS} ../../bin/athena -r /scratch/phn2956/disk-sph1/disk.final.rst output1/dt=62.8 output3/dt=62.8 time/tlim=3140
+#mpiexec -n ${SLURM_NTASKS} ../../bin/athena -r /scratch/phn2956/disk-sph1/disk.final.rst output1/dt=62.8 output3/dt=62.8 time/tlim=3140
 

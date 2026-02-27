@@ -4,12 +4,12 @@ reference =
 configure = --prob=disk --coord=spherical_polar
 
 <job>
-problem_id  = /scratch/phn2956/disk-sph1/disk      # problem ID: basename of output filenames
+problem_id  = /scratch/phn2956/disk-sph2/disk      # problem ID: basename of output filenames
 
 <output1> 
 file_type   = hdf5      # default: vtk output
 variable    = prim      # prim or cons
-dt          = 6.28      #62.8      # time increment between outputs
+dt          = 62.8      #62.8      # time increment between outputs
 ghost_zones = 1         # default = false 
 
 <output2>
@@ -18,12 +18,12 @@ dt          = 6.28      # 0.0628    # time increment between outputs
 
 <output3>
 file_type   = rst       # Restart data dump
-dt          = 6.28      # time increment between outputs
+dt          = 62.8      # time increment between outputs
 
 <time>
 cfl_number  = 0.3       # The Courant, Friedrichs, & Lewy (CFL) Number
 nlim        = -1        # cycle limit
-tlim        = 314  # 3140.      # time limit; 6280 in Jiaru's sim
+tlim        = 3140  # 3140.      # time limit; 6280 in Jiaru's sim
 integrator  = rk2 # vl2       # time integration algorithm
 xorder      = 2         # order of spatial reconstruction
 ncycle_out  = 1         # interval for stdout summary info
