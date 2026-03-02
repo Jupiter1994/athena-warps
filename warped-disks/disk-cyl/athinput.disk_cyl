@@ -10,7 +10,7 @@ problem_id  = /scratch/phn2956/disk-cyl/disk      # problem ID: basename of outp
 file_type   = hdf5       # HDF5 data dump
 variable    = cons      #
 dt          = 62.8      # 1  # time increment between outputs
-ghost_zones = 1         # includes ghost zones in output
+ghost_zones = 0         # 1 == includes ghost zones in output
 
 <output2>
 file_type   = hst       # History data dump
@@ -36,7 +36,7 @@ ix1_bc      = user           # Inner-X1 boundary condition flag
 ox1_bc      = user           # Outer-X1 boundary condition flag
 x1rat       = 1.0         # non-uniform grid ratio
 
-nx2         = 64            # Number of zones in X2-direction
+nx2         = 256            # Number of zones in X2-direction
 x2min       = 0.             # minimum value of X2
 x2max       = 6.2831853071795862   # maximum value of X2
 ix2_bc      = periodic       # Inner-X2 boundary condition flag
