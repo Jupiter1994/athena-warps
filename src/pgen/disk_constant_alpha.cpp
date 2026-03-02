@@ -95,6 +95,7 @@ void Mesh::InitUserMeshData(ParameterInput *pin) {
     gamma_gas = pin->GetReal("hydro","gamma");
   } else {
     p0_over_r0=SQR(pin->GetReal("hydro","iso_sound_speed"));
+    pslope = pin->GetOrAddReal("problem","pslope",0.0);
   }
   Real float_min = std::numeric_limits<float>::min();
   dfloor=pin->GetOrAddReal("hydro","dfloor",(1024*(float_min)));
@@ -306,8 +307,8 @@ void DiskInnerX1(MeshBlock *pmb,Coordinates *pco, AthenaArray<Real> &prim, FaceF
           vel = VelProfileCyl(rad,phi,z); // not used
           if (pmb->porb->orbital_advection_defined)
             vel -= vK(pmb->porb, pco->x1v(il-i), pco->x2v(j), pco->x3v(k));
-          //prim(IM1,k,j,il-i) = prim(IM1,k,j,il) * std::pow(rad_gh/rad,0.5) ;
-          prim(IM1,k,j,il-i) = 0.0;
+          prim(IM1,k,j,il-i) = prim(IM1,k,j,il) * std::pow(rad_gh/rad,0.5) ;
+          //prim(IM1,k,j,il-i) = 0.0;
 	  prim(IM2,k,j,il-i) = prim(IM2,k,j,il) * std::pow(rad_gh/rad,-0.5);
           prim(IM3,k,j,il-i) = 0.0;
           if (NON_BAROTROPIC_EOS)
@@ -358,8 +359,8 @@ void DiskOuterX1(MeshBlock *pmb,Coordinates *pco, AthenaArray<Real> &prim, FaceF
           vel = VelProfileCyl(rad,phi,z); // ignore for now
           if (pmb->porb->orbital_advection_defined)
             vel -= vK(pmb->porb, pco->x1v(iu+i), pco->x2v(j), pco->x3v(k));
-          // prim(IM1,k,j,iu+i) = prim(IM1,k,j,iu) * std::pow(rad_gh/rad,0.5);
-          prim(IM1,k,j,iu+i) = 0.0;
+          prim(IM1,k,j,iu+i) = prim(IM1,k,j,iu) * std::pow(rad_gh/rad,0.5);
+          // prim(IM1,k,j,iu+i) = 0.0;
 	  prim(IM2,k,j,iu+i) = prim(IM2,k,j,iu) * std::pow(rad_gh/rad,-0.5);
           prim(IM3,k,j,iu+i) = 0.0;
           if (NON_BAROTROPIC_EOS)
