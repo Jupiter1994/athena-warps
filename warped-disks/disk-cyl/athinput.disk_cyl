@@ -4,7 +4,7 @@ reference =
 configure = --prob=disk --coord=cylindrical
 
 <job>
-problem_id  = /scratch/phn2956/disk-cyl/disk      # problem ID: basename of output filenames
+problem_id  = /scratch/phn2956/disk-cyl2/disk      # problem ID: basename of output filenames
 
 <output1>
 file_type   = hdf5       # HDF5 data dump
@@ -14,6 +14,10 @@ dt          = 62.8      # 1  # time increment between outputs
 <output2>
 file_type   = hst       # History data dump
 dt          = .628    # time increment between outputs
+
+<output3>
+file_type   = rst      # Restart data dump
+dt 	    = 62.8     # time increment between outputs
 
 <time>
 cfl_number  = 0.3       # The Courant, Friedrichs, & Lewy (CFL) Number
