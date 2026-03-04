@@ -307,8 +307,8 @@ void DiskInnerX1(MeshBlock *pmb,Coordinates *pco, AthenaArray<Real> &prim, FaceF
           vel = VelProfileCyl(rad,phi,z); // not used
           if (pmb->porb->orbital_advection_defined)
             vel -= vK(pmb->porb, pco->x1v(il-i), pco->x2v(j), pco->x3v(k));
-          prim(IM1,k,j,il-i) = prim(IM1,k,j,il) * std::pow(rad_gh/rad,0.5) ;
-          //prim(IM1,k,j,il-i) = 0.0;
+          //prim(IM1,k,j,il-i) = prim(IM1,k,j,il) * std::pow(rad_gh/rad,0.5) ;
+          prim(IM1,k,j,il-i) = 0.0; // done in Jiaru's 2D pgen
 	  prim(IM2,k,j,il-i) = prim(IM2,k,j,il) * std::pow(rad_gh/rad,-0.5);
           prim(IM3,k,j,il-i) = 0.0;
           if (NON_BAROTROPIC_EOS)
@@ -345,9 +345,9 @@ void DiskOuterX1(MeshBlock *pmb,Coordinates *pco, AthenaArray<Real> &prim, FaceF
                  Real time, Real dt,
                  int il, int iu, int jl, int ju, int kl, int ku, int ngh) {
   Real rad(0.0), phi(0.0), z(0.0);
-  Real rad_gh;
+  Real rad_gh, vK_gh;
   Real r, r_gh; // spherical radii of last active and ghost cells, respectively
-  Real vel;
+  Real den, vel;
   OrbitalVelocityFunc &vK = pmb->porb->OrbitalVelocity;
   if (std::strcmp(COORDINATE_SYSTEM, "cylindrical") == 0) {
     for (int k=kl; k<=ku; ++k) {
@@ -355,12 +355,19 @@ void DiskOuterX1(MeshBlock *pmb,Coordinates *pco, AthenaArray<Real> &prim, FaceF
         for (int i=1; i<=ngh; ++i) {
           GetCylCoord(pco,rad_gh,phi,z,iu+i,j,k);
 	  GetCylCoord(pco,rad,phi,z,iu,j,k);
-          prim(IDN,k,j,iu+i) = prim(IDN,k,j,iu) * std::pow(rad_gh/rad,-1.5);
-          vel = VelProfileCyl(rad,phi,z); // ignore for now
-          if (pmb->porb->orbital_advection_defined)
+
+	  den = DenProfileCyl(rad_gh,phi,z);
+          den = std::max(den,dfloor);
+	  prim(IDN,k,j,iu+i) = den; // hold density at the outer edge fixed
+
+          //prim(IDN,k,j,iu+i) = prim(IDN,k,j,iu) * std::pow(rad_gh/rad,-1.5);
+          //vel = VelProfileCyl(rad,phi,z); // ignore (since no orb advection)
+	  if (pmb->porb->orbital_advection_defined)
             vel -= vK(pmb->porb, pco->x1v(iu+i), pco->x2v(j), pco->x3v(k));
-          prim(IM1,k,j,iu+i) = prim(IM1,k,j,iu) * std::pow(rad_gh/rad,0.5);
+          //prim(IM1,k,j,iu+i) = prim(IM1,k,j,iu) * std::pow(rad_gh/rad,0.5);
           // prim(IM1,k,j,iu+i) = 0.0;
+	  vK_gh = std::sqrt(gm0/rad_gh);
+	  prim(IM1,k,j,iu+i) = -alpha_const*p0_over_r0/vK_gh * 1.5; // used in Jiaru's pgen
 	  prim(IM2,k,j,iu+i) = prim(IM2,k,j,iu) * std::pow(rad_gh/rad,-0.5);
           prim(IM3,k,j,iu+i) = 0.0;
           if (NON_BAROTROPIC_EOS)
