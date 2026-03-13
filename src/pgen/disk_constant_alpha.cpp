@@ -375,12 +375,13 @@ void DiskOuterX1(MeshBlock *pmb,Coordinates *pco, AthenaArray<Real> &prim, FaceF
 	  vK_gh = std::sqrt(gm0/rad_gh);
 	  prim(IM1,k,j,iu+i) = -1.5*alpha_const*p0_over_r0/vK_gh; // hold fixed
 
+	  //prim(IM2,k,j,iu+i) = VelProfileCyl(rad_gh,phi,z); // slightly incorrect if dslope!=-1.5
 	  Real vphi_ss = (-1.5+pslope)*p0_over_r0/(gm0/rad_gh) + (1.0+pslope)
              - pslope*rad_gh/std::sqrt(rad_gh*rad_gh+z*z);
 	  vphi_ss = vK_gh*std::sqrt(vphi_ss) - rad_gh*Omega0;
 	  prim(IM2,k,j,iu+1) = vphi_ss; // hold fixed at steady-state vphi
-	  //prim(IM2,k,j,iu+i) = VelProfileCyl(rad_gh,phi,z); // hold fixed at bkgd v_phi
-          prim(IM3,k,j,iu+i) = 0.0;
+          
+	  prim(IM3,k,j,iu+i) = 0.0;
           if (NON_BAROTROPIC_EOS)
             prim(IEN,k,j,iu+i) = PoverR(rad, phi, z)*prim(IDN,k,j,iu+i);
         }
