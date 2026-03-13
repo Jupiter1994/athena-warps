@@ -547,8 +547,10 @@ void DiskInnerX1(MeshBlock *pmb,Coordinates *pco, AthenaArray<Real> &prim, FaceF
 
         // set the velocities
         v_r_g = prim(IM1,k,j,il) * std::pow(x1g/x1a,0.5);
-        v_phi_g = prim(IM2,k,j,il)/VelProfileCyl(x1a,phi,z) * VelProfileCyl(x1g,phi,z);
-    
+        //v_r_g = 0.0; // gets non-accreting soln
+	//v_phi_g = prim(IM2,k,j,il)/VelProfileCyl(x1a,phi,z) * VelProfileCyl(x1g,phi,z);
+        v_phi_g = prim(IM2,k,j,il) * std::pow(x1g/x1a,-0.5); // excludes pressure correction
+
         // get density from Sigma extrapolation
         den = prim(IDN,k,j,il) * std::pow(x1g/x1a,-1.5) ;
         den = std::max(den,dfloor);

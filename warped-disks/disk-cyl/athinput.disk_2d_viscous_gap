@@ -4,7 +4,7 @@ reference =
 configure = --prob=disk_2d_viscous_gap --coord=cylindrical
 
 <job>
-problem_id  = /scratch/phn2956/disk-cyl5/disk      # problem ID: basename of output filenames
+problem_id  = /scratch/phn2956/disk-cyl7/disk      # problem ID: basename of output filenames
 
 <output1>
 file_type   = hdf5       # VTK data dump
@@ -21,7 +21,7 @@ dt          = 628      # time increment between outputs
 <time>
 cfl_number  = 0.3       # The Courant, Friedrichs, & Lewy (CFL) Number
 nlim        = -1        # cycle limit
-tlim        = 6280.      # time limit
+tlim        = 3140.      # time limit
 integrator  = vl2       # time integration algorithm
 xorder      = 2         # order of spatial reconstruction
 ncycle_out  = 1         # interval for stdout summary info
@@ -66,7 +66,7 @@ Omega0      = 0.0 # angular velocity of the system
 GM          = 1.0
 r0          = 1.0
 p0_over_r0  = 0.0025
-dslope      = -2.0   # -1.5  
+dslope      = -1.5   # -1.5  
 pslope      = 0.0
 r_1         = 1.0
 r_2         = 3.0

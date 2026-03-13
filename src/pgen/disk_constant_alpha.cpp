@@ -256,6 +256,8 @@ Real DenProfileCyl(const Real rad, const Real phi, const Real z) {
   Real den;
   Real p_over_r = p0_over_r0;
   if (NON_BAROTROPIC_EOS) p_over_r = PoverR(rad, phi, z);
+  // warning: if dslope isn't -1.5, then this function won't be
+  // correct for steady-state
   Real denmid = rho0*std::pow(rad/r0,dslope);
   Real dentem = denmid*std::exp(gm0/p_over_r*(1./std::sqrt(SQR(rad)+SQR(z))-1./rad));
   den = dentem;
@@ -276,6 +278,8 @@ Real PoverR(const Real rad, const Real phi, const Real z) {
 
 Real VelProfileCyl(const Real rad, const Real phi, const Real z) {
   Real p_over_r = PoverR(rad, phi, z);
+  // warning: if dslope isn't -1.5, the below line won't be correct for
+  // steady-state
   Real vel = (dslope+pslope)*p_over_r/(gm0/rad) + (1.0+pslope)
              - pslope*rad/std::sqrt(rad*rad+z*z);
   vel = std::sqrt(gm0/rad)*std::sqrt(vel) - rad*Omega0;
@@ -307,8 +311,8 @@ void DiskInnerX1(MeshBlock *pmb,Coordinates *pco, AthenaArray<Real> &prim, FaceF
           vel = VelProfileCyl(rad,phi,z); // not used
           if (pmb->porb->orbital_advection_defined)
             vel -= vK(pmb->porb, pco->x1v(il-i), pco->x2v(j), pco->x3v(k));
-          //prim(IM1,k,j,il-i) = prim(IM1,k,j,il) * std::pow(rad_gh/rad,0.5) ;
-          prim(IM1,k,j,il-i) = 0.0; // done in Jiaru's 2D pgen
+          prim(IM1,k,j,il-i) = prim(IM1,k,j,il) * std::pow(rad_gh/rad,0.5);
+	  // below line excludes pressure correction to v_phi
 	  prim(IM2,k,j,il-i) = prim(IM2,k,j,il) * std::pow(rad_gh/rad,-0.5);
           prim(IM3,k,j,il-i) = 0.0;
           if (NON_BAROTROPIC_EOS)
@@ -356,19 +360,26 @@ void DiskOuterX1(MeshBlock *pmb,Coordinates *pco, AthenaArray<Real> &prim, FaceF
           GetCylCoord(pco,rad_gh,phi,z,iu+i,j,k);
 	  GetCylCoord(pco,rad,phi,z,iu,j,k);
 
-	  den = DenProfileCyl(rad_gh,phi,z);
-          den = std::max(den,dfloor);
-	  prim(IDN,k,j,iu+i) = den; // hold density at the outer edge fixed
-
+	  //den = DenProfileCyl(rad_gh,phi,z); // slightly incorrect if dslope != -1.5
+          Real denmid = rho0*std::pow(rad_gh/r0,-1.5);
+  	  Real dentem = denmid*std::exp(gm0/p0_over_r0*(1./std::sqrt(SQR(rad_gh)+SQR(z))-1./rad_gh));
+          den = dentem;
+	  den = std::max(den,dfloor);
+	  prim(IDN,k,j,iu+i) = den; // hold fixed at steady-state Sigma value
           //prim(IDN,k,j,iu+i) = prim(IDN,k,j,iu) * std::pow(rad_gh/rad,-1.5);
-          //vel = VelProfileCyl(rad,phi,z); // ignore (since no orb advection)
+
+          vel = VelProfileCyl(rad,phi,z); // ignore since no orbital advection
 	  if (pmb->porb->orbital_advection_defined)
             vel -= vK(pmb->porb, pco->x1v(iu+i), pco->x2v(j), pco->x3v(k));
           //prim(IM1,k,j,iu+i) = prim(IM1,k,j,iu) * std::pow(rad_gh/rad,0.5);
-          // prim(IM1,k,j,iu+i) = 0.0;
 	  vK_gh = std::sqrt(gm0/rad_gh);
-	  prim(IM1,k,j,iu+i) = -alpha_const*p0_over_r0/vK_gh * 1.5; // used in Jiaru's pgen
-	  prim(IM2,k,j,iu+i) = prim(IM2,k,j,iu) * std::pow(rad_gh/rad,-0.5);
+	  prim(IM1,k,j,iu+i) = -1.5*alpha_const*p0_over_r0/vK_gh; // hold fixed
+
+	  Real vphi_ss = (-1.5+pslope)*p0_over_r0/(gm0/rad_gh) + (1.0+pslope)
+             - pslope*rad_gh/std::sqrt(rad_gh*rad_gh+z*z);
+	  vphi_ss = vK_gh*std::sqrt(vphi_ss) - rad_gh*Omega0;
+	  prim(IM2,k,j,iu+1) = vphi_ss; // hold fixed at steady-state vphi
+	  //prim(IM2,k,j,iu+i) = VelProfileCyl(rad_gh,phi,z); // hold fixed at bkgd v_phi
           prim(IM3,k,j,iu+i) = 0.0;
           if (NON_BAROTROPIC_EOS)
             prim(IEN,k,j,iu+i) = PoverR(rad, phi, z)*prim(IDN,k,j,iu+i);
