@@ -14,11 +14,11 @@ ghost_zones = 1         # default = false
 
 <output2>
 file_type   = hst       # History data dump
-dt          = 6.28      # 0.0628    # time increment between outputs
+dt          = 62.8      # 0.0628    # time increment between outputs
 
 <output3>
 file_type   = rst       # Restart data dump
-dt          = 62.8      # time increment between outputs
+dt          = 314      # time increment between outputs
 
 <time>
 cfl_number  = 0.3       # The Courant, Friedrichs, & Lewy (CFL) Number
@@ -71,7 +71,7 @@ GM          = 1.0
 r0          = 1.0
 rho0        = 1.0
 # p0_over_r0  = 0.0004
-dslope      = -2.25 # -3.0
+dslope      = -3.0
 pslope      = 0.0
 r_1         = 1.0
 r_2         = 3.0
