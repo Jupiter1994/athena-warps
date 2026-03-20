@@ -81,11 +81,19 @@ W_in        = 0.0
 W_out       = 0.033
 # alpha_0     = 0.001
 alpha_const = 0.2 # added 2/19/16
-depth_gap   = 19.0
+
+## params for "basic" gap profile
+R_gap = 1.0 # center of gap
+Delta_gap = 0.1 # half-width of gap
+depth_gap = 2.0 # depth of gap
+
+## below params are for the more complex gap profile
+# depth_gap = 19.0
 r_gap_a     = 1.0
 r_gap_b     = 2.0
 del_a       = 0.1
 del_b       = 0.2
+
 dWdt        = 0.00001
 dpdt        = 0.0
 time_fix    = 9999999

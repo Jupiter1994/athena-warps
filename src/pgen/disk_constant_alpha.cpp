@@ -41,6 +41,7 @@ Real PoverR(const Real rad, const Real phi, const Real z);
 Real VelProfileCyl(const Real rad, const Real phi, const Real z);
 // problem parameters which are useful to make global to this file
 Real gm0, r0, rho0, dslope, p0_over_r0, pslope, gamma_gas;
+Real R_gap, Delta_gap, depth_gap; // gapped density profile parameters
 Real dfloor;
 Real Omega0;
 Real alpha_const; // alpha viscosity parameter
@@ -84,6 +85,11 @@ void Mesh::InitUserMeshData(ParameterInput *pin) {
   // Get parameters for initial density and velocity
   rho0 = pin->GetReal("problem","rho0");
   dslope = pin->GetOrAddReal("problem","dslope",0.0);
+
+  // Get parameters for density profile
+  R_gap     =  pin->GetOrAddReal("problem","R_gap",r0);
+  depth_gap = pin->GetOrAddReal("problem","depth_gap",1.0); // default is no gap
+  Delta_gap = pin->GetOrAddReal("problem","Delta_gap",0.1);
 
   // Get parameter for viscosity
   alpha_const = pin->GetReal("problem","alpha_const");
@@ -250,17 +256,28 @@ void GetCylCoord(Coordinates *pco,Real &rad,Real &phi,Real &z,int i,int j,int k)
 }
 
 //----------------------------------------------------------------------------------------
+//! background state helpers: gap shape
+//
+Real gapProfile(const Real rad, const Real phi, const Real z) {
+    Real r_polar = rad; //  std::sqrt(rad*rad+z*z);
+    Real exponent = -std::pow((r_polar - R_gap), 2) / (2 * std::pow(Delta_gap, 2));
+    return 1 + (depth_gap - 1) * std::exp(exponent);
+}
+
+//----------------------------------------------------------------------------------------
 //! computes density in cylindrical coordinates
 
 Real DenProfileCyl(const Real rad, const Real phi, const Real z) {
   Real den;
   Real p_over_r = p0_over_r0;
+  Real gap_R = gapProfile(rad,phi,z);
+
   if (NON_BAROTROPIC_EOS) p_over_r = PoverR(rad, phi, z);
-  // warning: if dslope isn't -1.5, then this function won't be
-  // correct for steady-state
+  
   Real denmid = rho0*std::pow(rad/r0,dslope);
   Real dentem = denmid*std::exp(gm0/p_over_r*(1./std::sqrt(SQR(rad)+SQR(z))-1./rad));
-  den = dentem;
+  den = dentem * (1.0/gap_R);
+
   return std::max(den,dfloor);
 }
 
@@ -295,10 +312,10 @@ void DiskInnerX1(MeshBlock *pmb,Coordinates *pco, AthenaArray<Real> &prim, FaceF
                  int il, int iu, int jl, int ju, int kl, int ku, int ngh) {
   Real rad(0.0), phi(0.0), z(0.0);
   Real vel;
-  Real rad_gh; // cylindrical radius at ghost cell
+  Real rad_gh, z_gh; // cylindrical radius and height at ghost cell
   Real r, r_gh; // spherical radii of last active and ghost cells, respectively
   OrbitalVelocityFunc &vK = pmb->porb->OrbitalVelocity;
-  
+
   // printf("ngh= %1d \n", ngh);
 
   if (std::strcmp(COORDINATE_SYSTEM, "cylindrical") == 0) {
@@ -324,10 +341,14 @@ void DiskInnerX1(MeshBlock *pmb,Coordinates *pco, AthenaArray<Real> &prim, FaceF
     for (int k=kl; k<=ku; ++k) {
       for (int j=jl; j<=ju; ++j) {
         for (int i=1; i<=ngh; ++i) {
-          r = pco->x1v(il);
+          GetCylCoord(pco,rad_gh,phi,z_gh,il-i,j,k);
+          GetCylCoord(pco,rad,phi,z,il,j,k);
+
+	  r = pco->x1v(il);
 	  r_gh = pco->x1v(il-i);
 
-          prim(IDN,k,j,il-i) = prim(IDN,k,j,il) * std::pow(r_gh/r,-1.5);
+          prim(IDN,k,j,il-i) = prim(IDN,k,j,il) *
+		DenProfileCyl(rad_gh,phi,z_gh)/DenProfileCyl(rad,phi,z);
           // vel = VelProfileCyl(rad,phi,z);
           if (pmb->porb->orbital_advection_defined)
             vel -= vK(pmb->porb, pco->x1v(il-i), pco->x2v(j), pco->x3v(k));
@@ -349,8 +370,9 @@ void DiskOuterX1(MeshBlock *pmb,Coordinates *pco, AthenaArray<Real> &prim, FaceF
                  Real time, Real dt,
                  int il, int iu, int jl, int ju, int kl, int ku, int ngh) {
   Real rad(0.0), phi(0.0), z(0.0);
-  Real rad_gh, vK_gh;
+  Real rad_gh, vK_gh, z_gh; // cylindrical R, v_K, and z
   Real r, r_gh; // spherical radii of last active and ghost cells, respectively
+  Real z_over_H; // z/H (used if coord sys is spherical)
   Real den, vel;
   OrbitalVelocityFunc &vK = pmb->porb->OrbitalVelocity;
   if (std::strcmp(COORDINATE_SYSTEM, "cylindrical") == 0) {
@@ -382,18 +404,20 @@ void DiskOuterX1(MeshBlock *pmb,Coordinates *pco, AthenaArray<Real> &prim, FaceF
     for (int k=kl; k<=ku; ++k) {
       for (int j=jl; j<=ju; ++j) {
         for (int i=1; i<=ngh; ++i) {
-          GetCylCoord(pco,rad_gh,phi,z,iu+i,j,k);
-          r = pco->x1v(iu);
+          GetCylCoord(pco,rad_gh,phi,z_gh,iu+i,j,k);
+          //r = pco->x1v(iu);
           r_gh = pco->x1v(iu+i);
 
           //prim(IDN,k,j,iu+i) = prim(IDN,k,j,iu) * std::pow(r_gh/r,-1.5);
-	  prim(IDN,k,j,iu+i) = DenProfileCyl(rad_gh,phi,z); // hold the outer rho fixed
+	  prim(IDN,k,j,iu+i) = DenProfileCyl(rad_gh,phi,z_gh); // hold the outer rho fixed
           // vel = VelProfileCyl(rad,phi,z);
+	  vK_gh = std::sqrt(gm0/rad_gh);
           if (pmb->porb->orbital_advection_defined)
             vel -= vK(pmb->porb, pco->x1v(iu+i), pco->x2v(j), pco->x3v(k));
-          prim(IM1,k,j,iu+i) = prim(IM1,k,j,iu) * std::pow(r_gh/r,0.5); // v_r
+	  z_over_H = z_gh / std::sqrt(p0_over_r0) * (vK_gh/rad_gh); // H=cs/Omega
+          prim(IM1,k,j,iu+i) = -alpha_const*p0_over_r0/vK_gh * (-3 + 4.5*SQR(z_over_H)); // v_r
           prim(IM2,k,j,iu+i) = 0.0; // v_theta
-          prim(IM3,k,j,iu+i) = prim(IM3,k,j,iu) * std::pow(r_gh/r,-0.5); // v_phi
+          prim(IM3,k,j,iu+i) = VelProfileCyl(rad_gh,phi,z_gh); // v_phi
           if (NON_BAROTROPIC_EOS)
             prim(IEN,k,j,iu+i) = PoverR(rad, phi, z)*prim(IDN,k,j,iu+i);
         }

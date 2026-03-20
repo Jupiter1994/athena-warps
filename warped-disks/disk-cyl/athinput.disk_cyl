@@ -4,7 +4,7 @@ reference =
 configure = --prob=disk --coord=cylindrical
 
 <job>
-problem_id  = /scratch/phn2956/disk-cyl12/disk      # problem ID: basename of output filenames
+problem_id  = /scratch/phn2956/disk-cyl13/disk      # problem ID: basename of output filenames
 
 <output1>
 file_type   = hdf5       # HDF5 data dump
@@ -23,7 +23,7 @@ dt 	    = 628     # time increment between outputs
 <time>
 cfl_number  = 0.3       # The Courant, Friedrichs, & Lewy (CFL) Number
 nlim        = -1        # cycle limit
-tlim        = 6280. #      # time limit
+tlim        = 1300. #      # time limit
 integrator  = vl2       # time integration algorithm
 xorder      = 2         # order of spatial reconstruction
 ncycle_out  = 1         # interval for stdout summary info
@@ -57,7 +57,7 @@ nx3        = 1         # Number of zones in X3-direction in one MeshBlock
 
 <hydro>
 gamma           = 1.66666667 # gamma = C_p/C_v
-iso_sound_speed = 0.05 # 0.1        # isothermal sound speed
+iso_sound_speed = 0.1 # 0.1        # isothermal sound speed
 dfloor          = 1.e-6
 pfloor          = 1.e-9
 
@@ -72,6 +72,9 @@ rho0        = 1.0
 # p0_over_r0  = 0.0025    # c^2
 # p0overr0    = 0.0025
 pslope      = 0.
-dslope      = -2  # exponent in density power law; -1.5 is steady state for viscous disk
-alpha_const = 0.1    # viscosity parameter
+dslope      = -1.5  # exponent in density power law; -1.5 is steady state for viscous disk
+R_gap = 1.0 # center of gap
+Delta_gap = 0.1 # half-width of gap
+depth_gap = 2.0 # depth of gap
+alpha_const = 0.2    # viscosity parameter
 nu_iso = 0.2  # not used, but NEEDS to be nonzero for Athena++ to actually turn on viscosity
