@@ -82,6 +82,10 @@ W_out       = 0.033
 # alpha_0     = 0.001
 alpha_const = 0.2 # added 2/19/16
 
+## the disk's initial inclination angle
+## (it's rotated about the y-axis)
+beta = 0.05 
+
 ## params for "basic" gap profile
 R_gap = 1.0 # center of gap
 Delta_gap = 0.1 # half-width of gap

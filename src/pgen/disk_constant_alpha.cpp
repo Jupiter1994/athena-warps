@@ -11,7 +11,7 @@
 
 // C++ headers
 #include <algorithm>  // min
-#include <cmath>      // sqrt
+#include <cmath>      // sqrt, atan2, etc.
 #include <cstdlib>    // srand
 #include <cstring>    // strcmp()
 #include <fstream>
@@ -45,6 +45,7 @@ Real R_gap, Delta_gap, depth_gap; // gapped density profile parameters
 Real dfloor;
 Real Omega0;
 Real alpha_const; // alpha viscosity parameter
+Real beta; // disk's initial inclination
 } // namespace
 
 // User-defined boundary conditions for disk simulations
@@ -94,6 +95,9 @@ void Mesh::InitUserMeshData(ParameterInput *pin) {
   // Get parameter for viscosity
   alpha_const = pin->GetReal("problem","alpha_const");
 
+  // Get parameter for initial inclination
+  beta = pin->GetReal("problem","beta");
+  
   // Get parameters of initial pressure and cooling parameters
   if (NON_BAROTROPIC_EOS) {
     p0_over_r0 = pin->GetOrAddReal("problem","p0_over_r0",0.0025);
@@ -142,6 +146,7 @@ void Mesh::InitUserMeshData(ParameterInput *pin) {
 void MeshBlock::ProblemGenerator(ParameterInput *pin) {
   Real rad(0.0), phi(0.0), z(0.0);
   Real den, vel;
+  Real vr, vtheta, vphi;
   Real x1, x2, x3;
 
   OrbitalVelocityFunc &vK = porb->OrbitalVelocity;
@@ -152,20 +157,20 @@ void MeshBlock::ProblemGenerator(ParameterInput *pin) {
       x2 = pcoord->x2v(j);
       for (int i=is; i<=ie; ++i) {
         x1 = pcoord->x1v(i);
-        GetCylCoord(pcoord,rad,phi,z,i,j,k); // convert to cylindrical coordinates
-        // compute initial conditions in cylindrical coordinates
-        den = DenProfileCyl(rad,phi,z);
-        vel = VelProfileCyl(rad,phi,z);
-        if (porb->orbital_advection_defined)
+        
+	// get background values of density and velocity
+        GetDenVelTilted(x1, x2, x3, beta, den, vr, vtheta, vphi);
+	
+	if (porb->orbital_advection_defined)
           vel -= vK(porb, x1, x2, x3);
         phydro->u(IDN,k,j,i) = den;
-        phydro->u(IM1,k,j,i) = 0.0;
+        phydro->u(IM1,k,j,i) = den*vr; // 0.0;
         if (std::strcmp(COORDINATE_SYSTEM, "cylindrical") == 0) {
           phydro->u(IM2,k,j,i) = den*vel;
           phydro->u(IM3,k,j,i) = 0.0;
         } else if (std::strcmp(COORDINATE_SYSTEM, "spherical_polar") == 0) {
-          phydro->u(IM2,k,j,i) = 0.0;
-          phydro->u(IM3,k,j,i) = den*vel;
+          phydro->u(IM2,k,j,i) = den*vtheta; // 0.0;
+          phydro->u(IM3,k,j,i) = den*vphi; // den*vel;
         }
 
         if (NON_BAROTROPIC_EOS) {
@@ -221,7 +226,7 @@ void alpha_viscosity(HydroDiffusion *phdif, MeshBlock *pmb,
 	        //printf("j=%1d \n",j);
 		//printf("k=%1d \n",k);
 		GetCylCoord(pmb->pcoord,rad,phi,z,i,j,k);
-	        rad   = std::sqrt(rad*rad+z*z);
+	        raid   = std::sqrt(rad*rad+z*z);
 	        cs2   = p0_over_r0 * std::pow(rad, pslope); // * (1 + 0.5*pslope*std::pow(z/rad,2));
 	        vK    = std::sqrt(gm0/rad);
 	        //alpha_R = alphaProfile(0.5*(r_gap_a+r_gap_b),phi,z);
@@ -237,6 +242,121 @@ void alpha_viscosity(HydroDiffusion *phdif, MeshBlock *pmb,
 
   return;
 }
+
+
+// ---------------------------------------------------------------------------------------
+//! functions to facilitate disk rotation
+namespace {
+
+/**
+ * Converts spherical coordinates to Cartesian.
+ *
+ * r,theta,phi: spherical coordinates
+ * x,y,z: references to the (Cartesian) coordinates you're setting
+ */
+void SphToCart(Real r, Real theta, Real phi, Real &x, Real &y, Real &z) { 
+  x = r * std::sin(theta) * std::cos(phi);
+  y = r * std::sin(theta) * std::sin(phi);
+  z = r * std::cos(theta);
+  
+  return;
+
+}
+
+/**
+ * Converts spherical coordinates to cylindrical.
+ * (Unlike GetCylCoord(), this function allows you to 
+ * input an arbitrary set of spherical coordinates.)
+ *
+ * r,theta,phi: spherical coordinates
+ * R,Phi,z: references to the (cylindrical) coordinates you're setting
+ */
+void SphToCyl(Real r, Real theta, Real phi, Real &R, Real &Phi, Real &z) {
+  R = r * std::sin(theta);
+  Phi = phi;
+  z = r * std::cos(theta);
+
+  return;
+
+}
+
+/**
+ * Converts Cartesian coordinates to spherical.
+ *
+ * x,y,z: Cartesian coordinates
+ * r,theta,phi: references to the spherical coordinates you're setting
+ */
+void CartToSph(Real x, Real y, Real z, Real &r, Real &theta, Real &phi) {
+
+  r = std::hypot(x,y,z);
+  theta = std::atan2(hypot(x,y), z);
+  phi = std::atan2(y, x); 
+  
+  return;
+
+}
+
+/**
+ * Rotate a vector (in Cartesian coordinates) by the angle `beta` about the y-axis.
+ * (We're rotating the xz-plane counterclockwise; e.g., the point (1,0) becomes
+ * (0,1) after a 90-degree rotation.)
+ *
+ * x,y,z: references to the Cartesian coordinates you're changing
+ * beta: the angle by which you're rotating the vector
+ */
+void RotateAroundY(Real &x, Real &y, Real &z, Real beta) {
+  
+  Real x_new, z_new; // x,z coords of rotated vector
+
+  // apply rotation around y-axis
+  x_new = std::cos(beta)*x - std::sin(beta)*z;
+  z_new = std::sin(beta)*x + std::cos(beta)*z;
+ 
+  x = x_new;
+  z = z_new;
+
+  return;
+}
+
+/**
+ * Given a set of spherical coordinates and a rotation angle `beta`,
+ * return the background values of density and velocity at those coordinates.
+ * 
+ * r,theta,phi: spherical coordinates
+ * beta: rotation angle
+ * rho,vr,vtheta,vphi: references to the background values you're setting
+ */
+void GetDenVelTilted(Real r, Real theta, Real phi, Real beta, Real &den, 
+		Real &vr, Real &vtheta, Real &vphi) {
+  Real rad(0.0), Phi(0.0), z(0.0);
+  Real x, y, z;
+  Real x1, x2, x3; // spherical coords of rotated position vector
+  Real den, vel;
+  Real vx, vy, vz;
+
+  // calculate values at an angle beta "below" your position
+  // first, get spherical coordinates at that new position
+  SphToCart(r, theta, phi, x, y, z);
+  RotateAroundY(x, y, z, -beta);
+  CartToSph(x, y, z, x1, x2, x3);
+  // second, compute in cylindrical coordinates
+  SphToCyl(x1, x2, x3, rad, Phi, z);
+  den = DenProfileCyl(rad,Phi,z);
+  vel = VelProfileCyl(rad,Phi,z);
+
+  // get velocity vector at (x1,x2,x3)    
+  vx = -vel * std::sin(phi);
+  vy = vel * std::cos(phi);
+  vz = 0;
+  // get velocity at your position
+  RotateAroundY(vx, vy, vz, beta);
+  CartToSph(vx, vy, vz, vr, vtheta, vphi);
+
+  return;
+}
+
+}
+
 
 namespace {
 //----------------------------------------------------------------------------------------
@@ -313,7 +433,8 @@ void DiskInnerX1(MeshBlock *pmb,Coordinates *pco, AthenaArray<Real> &prim, FaceF
   Real rad(0.0), phi(0.0), z(0.0);
   Real vel;
   Real rad_gh, z_gh; // cylindrical radius and height at ghost cell
-  Real r, r_gh; // spherical radii of last active and ghost cells, respectively
+  Real r_a, theta_a, phi_a; // sph coords of active cell
+  Real r_g, theta_g, phi_g; // sph coords of ghost cell
   OrbitalVelocityFunc &vK = pmb->porb->OrbitalVelocity;
 
   // printf("ngh= %1d \n", ngh);
@@ -341,8 +462,13 @@ void DiskInnerX1(MeshBlock *pmb,Coordinates *pco, AthenaArray<Real> &prim, FaceF
     for (int k=kl; k<=ku; ++k) {
       for (int j=jl; j<=ju; ++j) {
         for (int i=1; i<=ngh; ++i) {
-          GetCylCoord(pco,rad_gh,phi,z_gh,il-i,j,k);
-          GetCylCoord(pco,rad,phi,z,il,j,k);
+          //GetCylCoord(pco,rad_gh,phi,z_gh,il-i,j,k);
+          //GetCylCoord(pco,rad,phi,z,il,j,k);
+
+	  r_a = pco->x1v(il);
+          r_g = ...
+
+	  GetDenVelTilted(x1, x2, x3, beta, den, vr, vtheta, vphi);
 
 	  r = pco->x1v(il);
 	  r_gh = pco->x1v(il-i);
