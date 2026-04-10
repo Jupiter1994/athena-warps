@@ -164,8 +164,8 @@ void MeshBlock::ProblemGenerator(ParameterInput *pin) {
         GetDenVelTilted(x1, x2, x3, beta, den, vr, vtheta, vphi);
 	
 	if (porb->orbital_advection_defined)
-          vel -= vK(porb, x1, x2, x3);
-        phydro->u(IDN,k,j,i) = den;
+            vel -= vK(porb, x1, x2, x3);
+	phydro->u(IDN,k,j,i) = den;
         phydro->u(IM1,k,j,i) = den*vr; // 0.0;
         if (std::strcmp(COORDINATE_SYSTEM, "cylindrical") == 0) {
           phydro->u(IM2,k,j,i) = den*vel;
@@ -346,12 +346,15 @@ void GetDenVelTilted(Real r, Real theta, Real phi, Real beta, Real &den,
   den = DenProfileCyl(rad,Phi,z);
   vel = VelProfileCyl(rad,Phi,z);
 
-  // get velocity vector at (x1,x2,x3)    
+  // compute the velocity vector    
   vx = -vel * std::sin(phi);
   vy = vel * std::cos(phi);
   vz = 0;
   // get velocity at your position
-  RotateAroundY(vx, vy, vz, beta);
+  if (std::cos(phi) > 0) // x > 0
+      RotateAroundY(vx, vy, vz, M_PI_2 - theta);
+  else // x < 0
+      RotateAroundY(vx, vy, vz, theta - M_PI_2);
   CartToSph(vx, vy, vz, vr, vtheta, vphi);
 
   return;
