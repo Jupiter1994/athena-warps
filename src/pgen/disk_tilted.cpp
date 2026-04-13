@@ -17,6 +17,7 @@
 #include <fstream>
 #include <iostream>   // endl
 #include <limits>
+#include <numeric>    // inner_product
 #include <sstream>    // stringstream
 #include <stdexcept>  // runtime_error
 #include <string>     // c_str()
@@ -299,6 +300,31 @@ void CartToSph(Real x, Real y, Real z, Real &r, Real &theta, Real &phi) {
 }
 
 /**
+* Converts a Cartesian velocity vector to spherical coordinates. Note that 
+* this requires the position vector’s theta and phi coordinates.
+*/
+void VelCartToSph(Real theta, Real phi, Real vx, Real vy, Real vz,
+	       	Real &vr, Real &vtheta, Real &vphi) {
+
+  // Cartesian velocity vector
+  std::vector<Real> vCart = {vx, vy, vz};
+
+  // spherical unit vectors  
+  std::vector<Real> rHat = 
+      {std::sin(theta)*std::cos(phi), std::sin(theta)*std::sin(phi), std::cos(theta)};
+  std::vector<Real> thetaHat = 
+      {std::cos(theta)*std::cos(phi), std::cos(theta)*std::sin(phi), -std::sin(theta)};
+  std::vector<Real> phiHat = {-std::sin(phi), std::cos(phi)};
+
+  vr = std::inner_product(vCart.begin(), vCart.end(), rHat.begin(), 0);
+  vtheta = std::inner_product(vCart.begin(), vCart.end(), thetaHat.begin(), 0);
+  vphi = std::inner_product(vCart.begin(), vCart.end(), phiHat.begin(), 0);
+
+  return;
+
+}
+
+/**
  * Rotate a vector (in Cartesian coordinates) by the angle `beta` about the y-axis.
  * (We're rotating the xz-plane counterclockwise; e.g., the point (1,0) becomes
  * (0,1) after a 90-degree rotation.)
@@ -355,7 +381,7 @@ void GetDenVelTilted(Real r, Real theta, Real phi, Real beta, Real &den,
       RotateAroundY(vx, vy, vz, M_PI_2 - theta);
   else // x < 0
       RotateAroundY(vx, vy, vz, theta - M_PI_2);
-  CartToSph(vx, vy, vz, vr, vtheta, vphi);
+  VelCartToSph(theta, phi, vx, vy, vz, vr, vtheta, vphi);
 
   return;
 }

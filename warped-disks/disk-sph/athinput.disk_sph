@@ -4,7 +4,7 @@ reference =
 configure = --prob=disk --coord=spherical_polar
 
 <job>
-problem_id  = /scratch/phn2956/disk-tilted2/disk      # problem ID: basename of output filenames
+problem_id  = /scratch/phn2956/disk-tilted3/disk      # problem ID: basename of output filenames
 
 <output1> 
 file_type   = hdf5      # default: vtk output
