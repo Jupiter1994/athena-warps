@@ -347,9 +347,11 @@ void DiskInnerX1(MeshBlock *pmb,Coordinates *pco, AthenaArray<Real> &prim, FaceF
 	  r = pco->x1v(il);
 	  r_gh = pco->x1v(il-i);
 
-          prim(IDN,k,j,il-i) = prim(IDN,k,j,il) *
-		DenProfileCyl(rad_gh,phi,z_gh)/DenProfileCyl(rad,phi,z);
-          // vel = VelProfileCyl(rad,phi,z);
+          // prim(IDN,k,j,il-i) = prim(IDN,k,j,il) *
+	  //	DenProfileCyl(rad_gh,phi,z_gh)/DenProfileCyl(rad,phi,z);
+	  // below line doesn't care about midplane's location
+          prim(IDN,k,j,il-i) = prim(IDN,k,j,il) * std::pow(rad_gh/rad,-3);
+	  // vel = VelProfileCyl(rad,phi,z);
           if (pmb->porb->orbital_advection_defined)
             vel -= vK(pmb->porb, pco->x1v(il-i), pco->x2v(j), pco->x3v(k));
           prim(IM1,k,j,il-i) = prim(IM1,k,j,il) * std::pow(r_gh/r,0.5); // v_r
