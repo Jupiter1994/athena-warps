@@ -45,7 +45,8 @@ Real R_gap, Delta_gap, depth_gap; // gapped density profile parameters
 Real dfloor;
 Real Omega0;
 Real alpha_const; // alpha viscosity parameter
-} // namespace
+Real W_in; // updated in Mesh::UserWorkInLoop
+} // anonymous namespace
 
 // User-defined boundary conditions for disk simulations
 void DiskInnerX1(MeshBlock *pmb, Coordinates *pco, AthenaArray<Real> &prim,FaceField &b,
@@ -93,6 +94,9 @@ void Mesh::InitUserMeshData(ParameterInput *pin) {
 
   // Get parameter for viscosity
   alpha_const = pin->GetReal("problem","alpha_const");
+
+  // for an initially flat disk, W_in = W_out at the start
+  W_in = pin->GetReal("problem","W_out",0.0); 
 
   // Get parameters of initial pressure and cooling parameters
   if (NON_BAROTROPIC_EOS) {
@@ -177,6 +181,24 @@ void MeshBlock::ProblemGenerator(ParameterInput *pin) {
       }
     }
   }
+
+  return;
+}
+
+void Mesh::UserWorkInLoop() {
+
+  // definitions, etc
+  Real local_weighted_Win = 0.0;
+
+  // calculate (weighted) contribution to W_in at inner boundary
+
+
+  // send W_in to all cores/processes
+  #ifdef MPI_PARALLEL
+      MPI_Allreduce(&local_weighted_Win, &W_in, 1, MPI_ATHENA_REAL, MPI_SUM, MPI_COMM_WORLD);
+  #else // if only using one core
+      W_in = local_weighted_Win;
+  #endif
 
   return;
 }
@@ -347,10 +369,10 @@ void DiskInnerX1(MeshBlock *pmb,Coordinates *pco, AthenaArray<Real> &prim, FaceF
 	  r = pco->x1v(il);
 	  r_gh = pco->x1v(il-i);
 
-          // prim(IDN,k,j,il-i) = prim(IDN,k,j,il) *
-	  //	DenProfileCyl(rad_gh,phi,z_gh)/DenProfileCyl(rad,phi,z);
+          prim(IDN,k,j,il-i) = prim(IDN,k,j,il) *
+	  	DenProfileCyl(rad_gh,phi,z_gh)/DenProfileCyl(rad,phi,z);
 	  // below line doesn't care about midplane's location
-          prim(IDN,k,j,il-i) = prim(IDN,k,j,il) * std::pow(rad_gh/rad,-3);
+          //prim(IDN,k,j,il-i) = prim(IDN,k,j,il) * std::pow(rad_gh/rad,-3);
 	  // vel = VelProfileCyl(rad,phi,z);
           if (pmb->porb->orbital_advection_defined)
             vel -= vK(pmb->porb, pco->x1v(il-i), pco->x2v(j), pco->x3v(k));

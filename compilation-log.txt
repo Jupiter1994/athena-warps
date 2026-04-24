@@ -170,6 +170,7 @@ src/bvals/cc/../../eos/eos.hpp(83): warning #3180: unrecognized OpenMP #pragma
 mpicxx -I/hpc/software/spack_v20d1/spack/opt/spack/linux-rhel7-x86_64/intel-2021.4.0/hdf5-1.10.7-exmishiaff3ugqbeeimkqvnwrir76sxh/include -O3 -std=c++11 -fopenmp -qno-openmp-simd -c src/bvals/cc/reflect_cc.cpp -o obj/reflect_cc.o
 mpicxx -I/hpc/software/spack_v20d1/spack/opt/spack/linux-rhel7-x86_64/intel-2021.4.0/hdf5-1.10.7-exmishiaff3ugqbeeimkqvnwrir76sxh/include -O3 -std=c++11 -fopenmp -qno-openmp-simd -c src/bvals/cc/bvals_cc.cpp -o obj/bvals_cc.o
 mpicxx -I/hpc/software/spack_v20d1/spack/opt/spack/linux-rhel7-x86_64/intel-2021.4.0/hdf5-1.10.7-exmishiaff3ugqbeeimkqvnwrir76sxh/include -O3 -std=c++11 -fopenmp -qno-openmp-simd -c src/bvals/cc/bvals_shear_flux.cpp -o obj/bvals_shear_flux.o
+mpicxx -I/hpc/software/spack_v20d1/spack/opt/spack/linux-rhel7-x86_64/intel-2021.4.0/hdf5-1.10.7-exmishiaff3ugqbeeimkqvnwrir76sxh/include -O3 -std=c++11 -fopenmp -qno-openmp-simd -c src/bvals/cc/hydro/flux_correction_hydro.cpp -o obj/flux_correction_hydro.o
 src/bvals/cc/reflect_cc.cpp(28): warning #3180: unrecognized OpenMP #pragma
   #pragma omp simd
   ^
@@ -194,7 +195,7 @@ src/bvals/cc/reflect_cc.cpp(128): warning #3180: unrecognized OpenMP #pragma
   #pragma omp simd
   ^
 
-mpicxx -I/hpc/software/spack_v20d1/spack/opt/spack/linux-rhel7-x86_64/intel-2021.4.0/hdf5-1.10.7-exmishiaff3ugqbeeimkqvnwrir76sxh/include -O3 -std=c++11 -fopenmp -qno-openmp-simd -c src/bvals/cc/hydro/flux_correction_hydro.cpp -o obj/flux_correction_hydro.o
+mpicxx -I/hpc/software/spack_v20d1/spack/opt/spack/linux-rhel7-x86_64/intel-2021.4.0/hdf5-1.10.7-exmishiaff3ugqbeeimkqvnwrir76sxh/include -O3 -std=c++11 -fopenmp -qno-openmp-simd -c src/bvals/cc/hydro/bvals_shear_hydro.cpp -o obj/bvals_shear_hydro.o
 In file included from src/bvals/cc/bvals_cc.cpp(24):
 src/bvals/cc/../../eos/eos.hpp(67): warning #3180: unrecognized OpenMP #pragma
   #pragma omp declare simd simdlen(SIMD_WIDTH) uniform(this,prim,k,j) linear(i)
@@ -232,7 +233,6 @@ src/bvals/cc/bvals_cc.cpp(549): warning #3180: unrecognized OpenMP #pragma
   #pragma omp simd linear(p)
   ^
 
-mpicxx -I/hpc/software/spack_v20d1/spack/opt/spack/linux-rhel7-x86_64/intel-2021.4.0/hdf5-1.10.7-exmishiaff3ugqbeeimkqvnwrir76sxh/include -O3 -std=c++11 -fopenmp -qno-openmp-simd -c src/bvals/cc/hydro/bvals_shear_hydro.cpp -o obj/bvals_shear_hydro.o
 In file included from src/bvals/cc/bvals_shear_flux.cpp(27):
 src/bvals/cc/../../eos/eos.hpp(67): warning #3180: unrecognized OpenMP #pragma
   #pragma omp declare simd simdlen(SIMD_WIDTH) uniform(this,prim,k,j) linear(i)
@@ -262,6 +262,7 @@ src/bvals/cc/bvals_shear_flux.cpp(147): warning #3180: unrecognized OpenMP #prag
   #pragma omp simd
   ^
 
+mpicxx -I/hpc/software/spack_v20d1/spack/opt/spack/linux-rhel7-x86_64/intel-2021.4.0/hdf5-1.10.7-exmishiaff3ugqbeeimkqvnwrir76sxh/include -O3 -std=c++11 -fopenmp -qno-openmp-simd -c src/bvals/cc/hydro/reflect_hydro.cpp -o obj/reflect_hydro.o
 In file included from src/bvals/cc/hydro/bvals_shear_hydro.cpp(27):
 src/bvals/cc/hydro/../../../eos/eos.hpp(67): warning #3180: unrecognized OpenMP #pragma
   #pragma omp declare simd simdlen(SIMD_WIDTH) uniform(this,prim,k,j) linear(i)
@@ -287,14 +288,8 @@ src/bvals/cc/hydro/../../../eos/eos.hpp(83): warning #3180: unrecognized OpenMP 
   #pragma omp declare simd simdlen(SIMD_WIDTH) uniform(this,prim,cons,bcc,k,j) linear(i)
   ^
 
-mpicxx -I/hpc/software/spack_v20d1/spack/opt/spack/linux-rhel7-x86_64/intel-2021.4.0/hdf5-1.10.7-exmishiaff3ugqbeeimkqvnwrir76sxh/include -O3 -std=c++11 -fopenmp -qno-openmp-simd -c src/bvals/cc/hydro/reflect_hydro.cpp -o obj/reflect_hydro.o
 mpicxx -I/hpc/software/spack_v20d1/spack/opt/spack/linux-rhel7-x86_64/intel-2021.4.0/hdf5-1.10.7-exmishiaff3ugqbeeimkqvnwrir76sxh/include -O3 -std=c++11 -fopenmp -qno-openmp-simd -c src/bvals/cc/hydro/bvals_hydro.cpp -o obj/bvals_hydro.o
 mpicxx -I/hpc/software/spack_v20d1/spack/opt/spack/linux-rhel7-x86_64/intel-2021.4.0/hdf5-1.10.7-exmishiaff3ugqbeeimkqvnwrir76sxh/include -O3 -std=c++11 -fopenmp -qno-openmp-simd -c src/bvals/cc/mg/bvals_mg.cpp -o obj/bvals_mg.o
-mpicxx -I/hpc/software/spack_v20d1/spack/opt/spack/linux-rhel7-x86_64/intel-2021.4.0/hdf5-1.10.7-exmishiaff3ugqbeeimkqvnwrir76sxh/include -O3 -std=c++11 -fopenmp -qno-openmp-simd -c src/bvals/cc/mg/bvals_mg_gravity.cpp -o obj/bvals_mg_gravity.o
-src/bvals/cc/hydro/bvals_hydro.cpp(99): warning #3180: unrecognized OpenMP #pragma
-  #pragma omp simd linear(p)
-  ^
-
 src/bvals/cc/hydro/reflect_hydro.cpp(30): warning #3180: unrecognized OpenMP #pragma
   #pragma omp simd
   ^
@@ -343,9 +338,13 @@ src/bvals/cc/hydro/reflect_hydro.cpp(199): warning #3180: unrecognized OpenMP #p
   #pragma omp simd
   ^
 
+src/bvals/cc/hydro/bvals_hydro.cpp(99): warning #3180: unrecognized OpenMP #pragma
+  #pragma omp simd linear(p)
+  ^
+
+mpicxx -I/hpc/software/spack_v20d1/spack/opt/spack/linux-rhel7-x86_64/intel-2021.4.0/hdf5-1.10.7-exmishiaff3ugqbeeimkqvnwrir76sxh/include -O3 -std=c++11 -fopenmp -qno-openmp-simd -c src/bvals/cc/mg/bvals_mg_gravity.cpp -o obj/bvals_mg_gravity.o
 mpicxx -I/hpc/software/spack_v20d1/spack/opt/spack/linux-rhel7-x86_64/intel-2021.4.0/hdf5-1.10.7-exmishiaff3ugqbeeimkqvnwrir76sxh/include -O3 -std=c++11 -fopenmp -qno-openmp-simd -c src/bvals/cc/nr_radiation/reflect_rad.cpp -o obj/reflect_rad.o
 mpicxx -I/hpc/software/spack_v20d1/spack/opt/spack/linux-rhel7-x86_64/intel-2021.4.0/hdf5-1.10.7-exmishiaff3ugqbeeimkqvnwrir76sxh/include -O3 -std=c++11 -fopenmp -qno-openmp-simd -c src/bvals/cc/nr_radiation/bvals_shear_rad_flux.cpp -o obj/bvals_shear_rad_flux.o
-mpicxx -I/hpc/software/spack_v20d1/spack/opt/spack/linux-rhel7-x86_64/intel-2021.4.0/hdf5-1.10.7-exmishiaff3ugqbeeimkqvnwrir76sxh/include -O3 -std=c++11 -fopenmp -qno-openmp-simd -c src/bvals/cc/nr_radiation/bvals_rad.cpp -o obj/bvals_rad.o
 In file included from src/bvals/cc/nr_radiation/bvals_shear_rad_flux.cpp(27):
 src/bvals/cc/nr_radiation/../../../eos/eos.hpp(67): warning #3180: unrecognized OpenMP #pragma
   #pragma omp declare simd simdlen(SIMD_WIDTH) uniform(this,prim,k,j) linear(i)
@@ -375,7 +374,10 @@ src/bvals/cc/nr_radiation/bvals_shear_rad_flux.cpp(116): warning #3180: unrecogn
   #pragma omp simd
   ^
 
+mpicxx -I/hpc/software/spack_v20d1/spack/opt/spack/linux-rhel7-x86_64/intel-2021.4.0/hdf5-1.10.7-exmishiaff3ugqbeeimkqvnwrir76sxh/include -O3 -std=c++11 -fopenmp -qno-openmp-simd -c src/bvals/cc/nr_radiation/bvals_rad.cpp -o obj/bvals_rad.o
 mpicxx -I/hpc/software/spack_v20d1/spack/opt/spack/linux-rhel7-x86_64/intel-2021.4.0/hdf5-1.10.7-exmishiaff3ugqbeeimkqvnwrir76sxh/include -O3 -std=c++11 -fopenmp -qno-openmp-simd -c src/bvals/cc/nr_radiation/outflow_rad.cpp -o obj/outflow_rad.o
+mpicxx -I/hpc/software/spack_v20d1/spack/opt/spack/linux-rhel7-x86_64/intel-2021.4.0/hdf5-1.10.7-exmishiaff3ugqbeeimkqvnwrir76sxh/include -O3 -std=c++11 -fopenmp -qno-openmp-simd -c src/bvals/cc/nr_radiation/bvals_shear_rad.cpp -o obj/bvals_shear_rad.o
+mpicxx -I/hpc/software/spack_v20d1/spack/opt/spack/linux-rhel7-x86_64/intel-2021.4.0/hdf5-1.10.7-exmishiaff3ugqbeeimkqvnwrir76sxh/include -O3 -std=c++11 -fopenmp -qno-openmp-simd -c src/bvals/cc/nr_radiation/flux_correction_radiation.cpp -o obj/flux_correction_radiation.o
 src/bvals/cc/nr_radiation/bvals_rad.cpp(198): warning #3180: unrecognized OpenMP #pragma
   #pragma omp simd linear(p)
   ^
@@ -388,9 +390,6 @@ src/bvals/cc/nr_radiation/bvals_rad.cpp(336): warning #3180: unrecognized OpenMP
   #pragma omp simd linear(p)
   ^
 
-mpicxx -I/hpc/software/spack_v20d1/spack/opt/spack/linux-rhel7-x86_64/intel-2021.4.0/hdf5-1.10.7-exmishiaff3ugqbeeimkqvnwrir76sxh/include -O3 -std=c++11 -fopenmp -qno-openmp-simd -c src/bvals/cc/nr_radiation/bvals_shear_rad.cpp -o obj/bvals_shear_rad.o
-mpicxx -I/hpc/software/spack_v20d1/spack/opt/spack/linux-rhel7-x86_64/intel-2021.4.0/hdf5-1.10.7-exmishiaff3ugqbeeimkqvnwrir76sxh/include -O3 -std=c++11 -fopenmp -qno-openmp-simd -c src/bvals/cc/nr_radiation/flux_correction_radiation.cpp -o obj/flux_correction_radiation.o
-mpicxx -I/hpc/software/spack_v20d1/spack/opt/spack/linux-rhel7-x86_64/intel-2021.4.0/hdf5-1.10.7-exmishiaff3ugqbeeimkqvnwrir76sxh/include -O3 -std=c++11 -fopenmp -qno-openmp-simd -c src/bvals/cc/nr_radiation/vacuum_rad.cpp -o obj/vacuum_rad.o
 In file included from src/bvals/cc/nr_radiation/flux_correction_radiation.cpp(27):
 src/bvals/cc/nr_radiation/../../../eos/eos.hpp(67): warning #3180: unrecognized OpenMP #pragma
   #pragma omp declare simd simdlen(SIMD_WIDTH) uniform(this,prim,k,j) linear(i)
@@ -416,10 +415,10 @@ src/bvals/cc/nr_radiation/../../../eos/eos.hpp(83): warning #3180: unrecognized 
   #pragma omp declare simd simdlen(SIMD_WIDTH) uniform(this,prim,cons,bcc,k,j) linear(i)
   ^
 
+mpicxx -I/hpc/software/spack_v20d1/spack/opt/spack/linux-rhel7-x86_64/intel-2021.4.0/hdf5-1.10.7-exmishiaff3ugqbeeimkqvnwrir76sxh/include -O3 -std=c++11 -fopenmp -qno-openmp-simd -c src/bvals/cc/nr_radiation/vacuum_rad.cpp -o obj/vacuum_rad.o
 mpicxx -I/hpc/software/spack_v20d1/spack/opt/spack/linux-rhel7-x86_64/intel-2021.4.0/hdf5-1.10.7-exmishiaff3ugqbeeimkqvnwrir76sxh/include -O3 -std=c++11 -fopenmp -qno-openmp-simd -c src/bvals/cc/nr_radiation/polarwedge_rad.cpp -o obj/polarwedge_rad.o
 mpicxx -I/hpc/software/spack_v20d1/spack/opt/spack/linux-rhel7-x86_64/intel-2021.4.0/hdf5-1.10.7-exmishiaff3ugqbeeimkqvnwrir76sxh/include -O3 -std=c++11 -fopenmp -qno-openmp-simd -c src/bvals/cc/nr_radiation/rotate_rad.cpp -o obj/rotate_rad.o
 mpicxx -I/hpc/software/spack_v20d1/spack/opt/spack/linux-rhel7-x86_64/intel-2021.4.0/hdf5-1.10.7-exmishiaff3ugqbeeimkqvnwrir76sxh/include -O3 -std=c++11 -fopenmp -qno-openmp-simd -c src/bvals/fc/reflect_fc.cpp -o obj/reflect_fc.o
-mpicxx -I/hpc/software/spack_v20d1/spack/opt/spack/linux-rhel7-x86_64/intel-2021.4.0/hdf5-1.10.7-exmishiaff3ugqbeeimkqvnwrir76sxh/include -O3 -std=c++11 -fopenmp -qno-openmp-simd -c src/bvals/fc/bvals_fc.cpp -o obj/bvals_fc.o
 src/bvals/cc/nr_radiation/polarwedge_rad.cpp(31): warning #3180: unrecognized OpenMP #pragma
   #pragma omp simd
   ^
@@ -428,7 +427,6 @@ src/bvals/cc/nr_radiation/polarwedge_rad.cpp(51): warning #3180: unrecognized Op
   #pragma omp simd
   ^
 
-mpicxx -I/hpc/software/spack_v20d1/spack/opt/spack/linux-rhel7-x86_64/intel-2021.4.0/hdf5-1.10.7-exmishiaff3ugqbeeimkqvnwrir76sxh/include -O3 -std=c++11 -fopenmp -qno-openmp-simd -c src/bvals/fc/bvals_shear_emf.cpp -o obj/bvals_shear_emf.o
 src/bvals/fc/reflect_fc.cpp(28): warning #3180: unrecognized OpenMP #pragma
   #pragma omp simd
   ^
@@ -501,6 +499,9 @@ src/bvals/fc/reflect_fc.cpp(223): warning #3180: unrecognized OpenMP #pragma
   #pragma omp simd
   ^
 
+mpicxx -I/hpc/software/spack_v20d1/spack/opt/spack/linux-rhel7-x86_64/intel-2021.4.0/hdf5-1.10.7-exmishiaff3ugqbeeimkqvnwrir76sxh/include -O3 -std=c++11 -fopenmp -qno-openmp-simd -c src/bvals/fc/bvals_fc.cpp -o obj/bvals_fc.o
+mpicxx -I/hpc/software/spack_v20d1/spack/opt/spack/linux-rhel7-x86_64/intel-2021.4.0/hdf5-1.10.7-exmishiaff3ugqbeeimkqvnwrir76sxh/include -O3 -std=c++11 -fopenmp -qno-openmp-simd -c src/bvals/fc/bvals_shear_emf.cpp -o obj/bvals_shear_emf.o
+mpicxx -I/hpc/software/spack_v20d1/spack/opt/spack/linux-rhel7-x86_64/intel-2021.4.0/hdf5-1.10.7-exmishiaff3ugqbeeimkqvnwrir76sxh/include -O3 -std=c++11 -fopenmp -qno-openmp-simd -c src/bvals/fc/outflow_fc.cpp -o obj/outflow_fc.o
 In file included from src/bvals/fc/bvals_fc.cpp(26):
 src/bvals/fc/../../eos/eos.hpp(67): warning #3180: unrecognized OpenMP #pragma
   #pragma omp declare simd simdlen(SIMD_WIDTH) uniform(this,prim,k,j) linear(i)
@@ -582,7 +583,6 @@ src/bvals/fc/bvals_fc.cpp(965): warning #3180: unrecognized OpenMP #pragma
   #pragma omp simd
   ^
 
-mpicxx -I/hpc/software/spack_v20d1/spack/opt/spack/linux-rhel7-x86_64/intel-2021.4.0/hdf5-1.10.7-exmishiaff3ugqbeeimkqvnwrir76sxh/include -O3 -std=c++11 -fopenmp -qno-openmp-simd -c src/bvals/fc/outflow_fc.cpp -o obj/outflow_fc.o
 In file included from src/bvals/fc/bvals_shear_emf.cpp(28):
 src/bvals/fc/../../eos/eos.hpp(67): warning #3180: unrecognized OpenMP #pragma
   #pragma omp declare simd simdlen(SIMD_WIDTH) uniform(this,prim,k,j) linear(i)
@@ -698,7 +698,6 @@ src/bvals/fc/outflow_fc.cpp(219): warning #3180: unrecognized OpenMP #pragma
 
 mpicxx -I/hpc/software/spack_v20d1/spack/opt/spack/linux-rhel7-x86_64/intel-2021.4.0/hdf5-1.10.7-exmishiaff3ugqbeeimkqvnwrir76sxh/include -O3 -std=c++11 -fopenmp -qno-openmp-simd -c src/bvals/fc/flux_correction_fc.cpp -o obj/flux_correction_fc.o
 mpicxx -I/hpc/software/spack_v20d1/spack/opt/spack/linux-rhel7-x86_64/intel-2021.4.0/hdf5-1.10.7-exmishiaff3ugqbeeimkqvnwrir76sxh/include -O3 -std=c++11 -fopenmp -qno-openmp-simd -c src/bvals/fc/bvals_shear_fc.cpp -o obj/bvals_shear_fc.o
-mpicxx -I/hpc/software/spack_v20d1/spack/opt/spack/linux-rhel7-x86_64/intel-2021.4.0/hdf5-1.10.7-exmishiaff3ugqbeeimkqvnwrir76sxh/include -O3 -std=c++11 -fopenmp -qno-openmp-simd -c src/bvals/fc/polarwedge_fc.cpp -o obj/polarwedge_fc.o
 In file included from src/bvals/fc/flux_correction_fc.cpp(25):
 src/bvals/fc/../../eos/eos.hpp(67): warning #3180: unrecognized OpenMP #pragma
   #pragma omp declare simd simdlen(SIMD_WIDTH) uniform(this,prim,k,j) linear(i)
@@ -724,6 +723,7 @@ src/bvals/fc/../../eos/eos.hpp(83): warning #3180: unrecognized OpenMP #pragma
   #pragma omp declare simd simdlen(SIMD_WIDTH) uniform(this,prim,cons,bcc,k,j) linear(i)
   ^
 
+mpicxx -I/hpc/software/spack_v20d1/spack/opt/spack/linux-rhel7-x86_64/intel-2021.4.0/hdf5-1.10.7-exmishiaff3ugqbeeimkqvnwrir76sxh/include -O3 -std=c++11 -fopenmp -qno-openmp-simd -c src/bvals/fc/polarwedge_fc.cpp -o obj/polarwedge_fc.o
 In file included from src/bvals/fc/bvals_shear_fc.cpp(27):
 src/bvals/fc/../../eos/eos.hpp(67): warning #3180: unrecognized OpenMP #pragma
   #pragma omp declare simd simdlen(SIMD_WIDTH) uniform(this,prim,k,j) linear(i)
@@ -792,6 +792,31 @@ src/bvals/fc/polarwedge_fc.cpp(97): warning #3180: unrecognized OpenMP #pragma
 mpicxx -I/hpc/software/spack_v20d1/spack/opt/spack/linux-rhel7-x86_64/intel-2021.4.0/hdf5-1.10.7-exmishiaff3ugqbeeimkqvnwrir76sxh/include -O3 -std=c++11 -fopenmp -qno-openmp-simd -c src/bvals/orbital/bvals_orbital.cpp -o obj/bvals_orbital.o
 mpicxx -I/hpc/software/spack_v20d1/spack/opt/spack/linux-rhel7-x86_64/intel-2021.4.0/hdf5-1.10.7-exmishiaff3ugqbeeimkqvnwrir76sxh/include -O3 -std=c++11 -fopenmp -qno-openmp-simd -c src/bvals/sixray/bvals_sixray.cpp -o obj/bvals_sixray.o
 mpicxx -I/hpc/software/spack_v20d1/spack/opt/spack/linux-rhel7-x86_64/intel-2021.4.0/hdf5-1.10.7-exmishiaff3ugqbeeimkqvnwrir76sxh/include -O3 -std=c++11 -fopenmp -qno-openmp-simd -c src/bvals/utils/boundary_flag.cpp -o obj/boundary_flag.o
+In file included from src/bvals/sixray/bvals_sixray.cpp(24):
+src/bvals/sixray/../../eos/eos.hpp(67): warning #3180: unrecognized OpenMP #pragma
+  #pragma omp declare simd simdlen(SIMD_WIDTH) uniform(this,prim,k,j) linear(i)
+  ^
+
+In file included from src/bvals/sixray/bvals_sixray.cpp(24):
+src/bvals/sixray/../../eos/eos.hpp(70): warning #3180: unrecognized OpenMP #pragma
+  #pragma omp declare simd simdlen(SIMD_WIDTH) uniform(this,s,n,k,j) linear(i)
+  ^
+
+In file included from src/bvals/sixray/bvals_sixray.cpp(24):
+src/bvals/sixray/../../eos/eos.hpp(73): warning #3180: unrecognized OpenMP #pragma
+  #pragma omp declare simd simdlen(SIMD_WIDTH) uniform(this,s,w,r,n,k,j) linear(i)
+  ^
+
+In file included from src/bvals/sixray/bvals_sixray.cpp(24):
+src/bvals/sixray/../../eos/eos.hpp(80): warning #3180: unrecognized OpenMP #pragma
+  #pragma omp declare simd simdlen(SIMD_WIDTH) uniform(this)
+  ^
+
+In file included from src/bvals/sixray/bvals_sixray.cpp(24):
+src/bvals/sixray/../../eos/eos.hpp(83): warning #3180: unrecognized OpenMP #pragma
+  #pragma omp declare simd simdlen(SIMD_WIDTH) uniform(this,prim,cons,bcc,k,j) linear(i)
+  ^
+
 src/bvals/orbital/bvals_orbital.cpp(1123): warning #3180: unrecognized OpenMP #pragma
   #pragma omp simd
   ^
@@ -918,31 +943,6 @@ src/bvals/orbital/bvals_orbital.cpp(3130): warning #3180: unrecognized OpenMP #p
 
 src/bvals/orbital/bvals_orbital.cpp(3147): warning #3180: unrecognized OpenMP #pragma
   #pragma omp simd
-  ^
-
-In file included from src/bvals/sixray/bvals_sixray.cpp(24):
-src/bvals/sixray/../../eos/eos.hpp(67): warning #3180: unrecognized OpenMP #pragma
-  #pragma omp declare simd simdlen(SIMD_WIDTH) uniform(this,prim,k,j) linear(i)
-  ^
-
-In file included from src/bvals/sixray/bvals_sixray.cpp(24):
-src/bvals/sixray/../../eos/eos.hpp(70): warning #3180: unrecognized OpenMP #pragma
-  #pragma omp declare simd simdlen(SIMD_WIDTH) uniform(this,s,n,k,j) linear(i)
-  ^
-
-In file included from src/bvals/sixray/bvals_sixray.cpp(24):
-src/bvals/sixray/../../eos/eos.hpp(73): warning #3180: unrecognized OpenMP #pragma
-  #pragma omp declare simd simdlen(SIMD_WIDTH) uniform(this,s,w,r,n,k,j) linear(i)
-  ^
-
-In file included from src/bvals/sixray/bvals_sixray.cpp(24):
-src/bvals/sixray/../../eos/eos.hpp(80): warning #3180: unrecognized OpenMP #pragma
-  #pragma omp declare simd simdlen(SIMD_WIDTH) uniform(this)
-  ^
-
-In file included from src/bvals/sixray/bvals_sixray.cpp(24):
-src/bvals/sixray/../../eos/eos.hpp(83): warning #3180: unrecognized OpenMP #pragma
-  #pragma omp declare simd simdlen(SIMD_WIDTH) uniform(this,prim,cons,bcc,k,j) linear(i)
   ^
 
 mpicxx -I/hpc/software/spack_v20d1/spack/opt/spack/linux-rhel7-x86_64/intel-2021.4.0/hdf5-1.10.7-exmishiaff3ugqbeeimkqvnwrir76sxh/include -O3 -std=c++11 -fopenmp -qno-openmp-simd -c src/bvals/utils/check_polar.cpp -o obj/check_polar.o
@@ -1231,7 +1231,6 @@ src/eos/isothermal_hydro.cpp(81): warning #3180: unrecognized OpenMP #pragma
   ^
 
 mpicxx -I/hpc/software/spack_v20d1/spack/opt/spack/linux-rhel7-x86_64/intel-2021.4.0/hdf5-1.10.7-exmishiaff3ugqbeeimkqvnwrir76sxh/include -O3 -std=c++11 -fopenmp -qno-openmp-simd -c src/eos/eos_scalars.cpp -o obj/eos_scalars.o
-mpicxx -I/hpc/software/spack_v20d1/spack/opt/spack/linux-rhel7-x86_64/intel-2021.4.0/hdf5-1.10.7-exmishiaff3ugqbeeimkqvnwrir76sxh/include -O3 -std=c++11 -fopenmp -qno-openmp-simd -c src/chemistry/network_wrapper.cpp -o obj/network_wrapper.o
 In file included from src/eos/eos_high_order.cpp(20):
 src/eos/eos.hpp(67): warning #3180: unrecognized OpenMP #pragma
   #pragma omp declare simd simdlen(SIMD_WIDTH) uniform(this,prim,k,j) linear(i)
@@ -1269,7 +1268,9 @@ src/eos/eos_high_order.cpp(89): warning #3180: unrecognized OpenMP #pragma
   #pragma omp simd
   ^
 
+mpicxx -I/hpc/software/spack_v20d1/spack/opt/spack/linux-rhel7-x86_64/intel-2021.4.0/hdf5-1.10.7-exmishiaff3ugqbeeimkqvnwrir76sxh/include -O3 -std=c++11 -fopenmp -qno-openmp-simd -c src/chemistry/network_wrapper.cpp -o obj/network_wrapper.o
 mpicxx -I/hpc/software/spack_v20d1/spack/opt/spack/linux-rhel7-x86_64/intel-2021.4.0/hdf5-1.10.7-exmishiaff3ugqbeeimkqvnwrir76sxh/include -O3 -std=c++11 -fopenmp -qno-openmp-simd -c src/chemistry/utils/kida_species.cpp -o obj/kida_species.o
+mpicxx -I/hpc/software/spack_v20d1/spack/opt/spack/linux-rhel7-x86_64/intel-2021.4.0/hdf5-1.10.7-exmishiaff3ugqbeeimkqvnwrir76sxh/include -O3 -std=c++11 -fopenmp -qno-openmp-simd -c src/chemistry/utils/kida_reaction.cpp -o obj/kida_reaction.o
 In file included from src/eos/eos_scalars.cpp(22):
 src/eos/eos.hpp(67): warning #3180: unrecognized OpenMP #pragma
   #pragma omp declare simd simdlen(SIMD_WIDTH) uniform(this,prim,k,j) linear(i)
@@ -1311,7 +1312,6 @@ src/eos/eos_scalars.cpp(140): warning #3180: unrecognized OpenMP #pragma
   #pragma omp simd
   ^
 
-mpicxx -I/hpc/software/spack_v20d1/spack/opt/spack/linux-rhel7-x86_64/intel-2021.4.0/hdf5-1.10.7-exmishiaff3ugqbeeimkqvnwrir76sxh/include -O3 -std=c++11 -fopenmp -qno-openmp-simd -c src/chemistry/utils/kida_reaction.cpp -o obj/kida_reaction.o
 mpicxx -I/hpc/software/spack_v20d1/spack/opt/spack/linux-rhel7-x86_64/intel-2021.4.0/hdf5-1.10.7-exmishiaff3ugqbeeimkqvnwrir76sxh/include -O3 -std=c++11 -fopenmp -qno-openmp-simd -c src/chemistry/utils/thermo.cpp -o obj/thermo.o
 mpicxx -I/hpc/software/spack_v20d1/spack/opt/spack/linux-rhel7-x86_64/intel-2021.4.0/hdf5-1.10.7-exmishiaff3ugqbeeimkqvnwrir76sxh/include -O3 -std=c++11 -fopenmp -qno-openmp-simd -c src/chemistry/utils/shielding.cpp -o obj/shielding.o
 mpicxx -I/hpc/software/spack_v20d1/spack/opt/spack/linux-rhel7-x86_64/intel-2021.4.0/hdf5-1.10.7-exmishiaff3ugqbeeimkqvnwrir76sxh/include -O3 -std=c++11 -fopenmp -qno-openmp-simd -c src/chemistry/utils/chemistry_utils.cpp -o obj/chemistry_utils.o
@@ -1540,7 +1540,6 @@ src/gravity/mg_gravity.cpp(317): warning #3180: unrecognized OpenMP #pragma
   #pragma omp simd
   ^
 
-mpicxx -I/hpc/software/spack_v20d1/spack/opt/spack/linux-rhel7-x86_64/intel-2021.4.0/hdf5-1.10.7-exmishiaff3ugqbeeimkqvnwrir76sxh/include -O3 -std=c++11 -fopenmp -qno-openmp-simd -c src/hydro/calculate_velocity_differences.cpp -o obj/calculate_velocity_differences.o
 src/hydro/add_flux_divergence.cpp(55): warning #3180: unrecognized OpenMP #pragma
   #pragma omp simd
   ^
@@ -1573,6 +1572,7 @@ src/hydro/add_flux_divergence.cpp(164): warning #3180: unrecognized OpenMP #prag
   #pragma omp simd
   ^
 
+mpicxx -I/hpc/software/spack_v20d1/spack/opt/spack/linux-rhel7-x86_64/intel-2021.4.0/hdf5-1.10.7-exmishiaff3ugqbeeimkqvnwrir76sxh/include -O3 -std=c++11 -fopenmp -qno-openmp-simd -c src/hydro/calculate_velocity_differences.cpp -o obj/calculate_velocity_differences.o
 mpicxx -I/hpc/software/spack_v20d1/spack/opt/spack/linux-rhel7-x86_64/intel-2021.4.0/hdf5-1.10.7-exmishiaff3ugqbeeimkqvnwrir76sxh/include -O3 -std=c++11 -fopenmp -qno-openmp-simd -c src/hydro/new_blockdt.cpp -o obj/new_blockdt.o
 mpicxx -I/hpc/software/spack_v20d1/spack/opt/spack/linux-rhel7-x86_64/intel-2021.4.0/hdf5-1.10.7-exmishiaff3ugqbeeimkqvnwrir76sxh/include -O3 -std=c++11 -fopenmp -qno-openmp-simd -c src/hydro/hydro.cpp -o obj/hydro.o
 mpicxx -I/hpc/software/spack_v20d1/spack/opt/spack/linux-rhel7-x86_64/intel-2021.4.0/hdf5-1.10.7-exmishiaff3ugqbeeimkqvnwrir76sxh/include -O3 -std=c++11 -fopenmp -qno-openmp-simd -c src/hydro/calculate_fluxes.cpp -o obj/calculate_fluxes.o
@@ -1688,6 +1688,7 @@ src/hydro/calculate_fluxes.cpp(361): warning #3180: unrecognized OpenMP #pragma
   #pragma omp simd
   ^
 
+mpicxx -I/hpc/software/spack_v20d1/spack/opt/spack/linux-rhel7-x86_64/intel-2021.4.0/hdf5-1.10.7-exmishiaff3ugqbeeimkqvnwrir76sxh/include -O3 -std=c++11 -fopenmp -qno-openmp-simd -c src/hydro/srcterms/constant_acc.cpp -o obj/constant_acc.o
 src/hydro/srcterms/shearing_box.cpp(48): warning #3180: unrecognized OpenMP #pragma
   #pragma omp simd
   ^
@@ -1696,7 +1697,6 @@ src/hydro/srcterms/shearing_box.cpp(70): warning #3180: unrecognized OpenMP #pra
   #pragma omp simd
   ^
 
-mpicxx -I/hpc/software/spack_v20d1/spack/opt/spack/linux-rhel7-x86_64/intel-2021.4.0/hdf5-1.10.7-exmishiaff3ugqbeeimkqvnwrir76sxh/include -O3 -std=c++11 -fopenmp -qno-openmp-simd -c src/hydro/srcterms/constant_acc.cpp -o obj/constant_acc.o
 mpicxx -I/hpc/software/spack_v20d1/spack/opt/spack/linux-rhel7-x86_64/intel-2021.4.0/hdf5-1.10.7-exmishiaff3ugqbeeimkqvnwrir76sxh/include -O3 -std=c++11 -fopenmp -qno-openmp-simd -c src/hydro/srcterms/self_gravity.cpp -o obj/self_gravity.o
 mpicxx -I/hpc/software/spack_v20d1/spack/opt/spack/linux-rhel7-x86_64/intel-2021.4.0/hdf5-1.10.7-exmishiaff3ugqbeeimkqvnwrir76sxh/include -O3 -std=c++11 -fopenmp -qno-openmp-simd -c src/hydro/srcterms/hydro_srcterms.cpp -o obj/hydro_srcterms.o
 mpicxx -I/hpc/software/spack_v20d1/spack/opt/spack/linux-rhel7-x86_64/intel-2021.4.0/hdf5-1.10.7-exmishiaff3ugqbeeimkqvnwrir76sxh/include -O3 -std=c++11 -fopenmp -qno-openmp-simd -c src/hydro/srcterms/orbital_advection_srcterms.cpp -o obj/orbital_advection_srcterms.o
@@ -1765,6 +1765,31 @@ src/hydro/srcterms/rotating_system_srcterms.cpp(80): warning #3180: unrecognized
   #pragma omp simd
   ^
 
+In file included from src/hydro/hydro_diffusion/conduction.cpp(17):
+src/hydro/hydro_diffusion/../../eos/eos.hpp(67): warning #3180: unrecognized OpenMP #pragma
+  #pragma omp declare simd simdlen(SIMD_WIDTH) uniform(this,prim,k,j) linear(i)
+  ^
+
+In file included from src/hydro/hydro_diffusion/conduction.cpp(17):
+src/hydro/hydro_diffusion/../../eos/eos.hpp(70): warning #3180: unrecognized OpenMP #pragma
+  #pragma omp declare simd simdlen(SIMD_WIDTH) uniform(this,s,n,k,j) linear(i)
+  ^
+
+In file included from src/hydro/hydro_diffusion/conduction.cpp(17):
+src/hydro/hydro_diffusion/../../eos/eos.hpp(73): warning #3180: unrecognized OpenMP #pragma
+  #pragma omp declare simd simdlen(SIMD_WIDTH) uniform(this,s,w,r,n,k,j) linear(i)
+  ^
+
+In file included from src/hydro/hydro_diffusion/conduction.cpp(17):
+src/hydro/hydro_diffusion/../../eos/eos.hpp(80): warning #3180: unrecognized OpenMP #pragma
+  #pragma omp declare simd simdlen(SIMD_WIDTH) uniform(this)
+  ^
+
+In file included from src/hydro/hydro_diffusion/conduction.cpp(17):
+src/hydro/hydro_diffusion/../../eos/eos.hpp(83): warning #3180: unrecognized OpenMP #pragma
+  #pragma omp declare simd simdlen(SIMD_WIDTH) uniform(this,prim,cons,bcc,k,j) linear(i)
+  ^
+
 In file included from src/hydro/hydro_diffusion/viscosity.cpp(17):
 src/hydro/hydro_diffusion/../../eos/eos.hpp(67): warning #3180: unrecognized OpenMP #pragma
   #pragma omp declare simd simdlen(SIMD_WIDTH) uniform(this,prim,k,j) linear(i)
@@ -1773,6 +1798,10 @@ src/hydro/hydro_diffusion/../../eos/eos.hpp(67): warning #3180: unrecognized Ope
 In file included from src/hydro/hydro_diffusion/viscosity.cpp(17):
 src/hydro/hydro_diffusion/../../eos/eos.hpp(70): warning #3180: unrecognized OpenMP #pragma
   #pragma omp declare simd simdlen(SIMD_WIDTH) uniform(this,s,n,k,j) linear(i)
+  ^
+
+src/hydro/hydro_diffusion/conduction.cpp(47): warning #3180: unrecognized OpenMP #pragma
+  #pragma omp simd private(kappaf, denf, dTdx)
   ^
 
 In file included from src/hydro/hydro_diffusion/viscosity.cpp(17):
@@ -1788,6 +1817,22 @@ src/hydro/hydro_diffusion/../../eos/eos.hpp(80): warning #3180: unrecognized Ope
 In file included from src/hydro/hydro_diffusion/viscosity.cpp(17):
 src/hydro/hydro_diffusion/../../eos/eos.hpp(83): warning #3180: unrecognized OpenMP #pragma
   #pragma omp declare simd simdlen(SIMD_WIDTH) uniform(this,prim,cons,bcc,k,j) linear(i)
+  ^
+
+src/hydro/hydro_diffusion/conduction.cpp(70): warning #3180: unrecognized OpenMP #pragma
+  #pragma omp simd private(kappaf, denf, dTdy)
+  ^
+
+src/hydro/hydro_diffusion/conduction.cpp(94): warning #3180: unrecognized OpenMP #pragma
+  #pragma omp simd private(kappaf, denf, dTdz)
+  ^
+
+src/hydro/hydro_diffusion/conduction.cpp(127): warning #3180: unrecognized OpenMP #pragma
+  #pragma omp simd
+  ^
+
+src/hydro/hydro_diffusion/conduction.cpp(136): warning #3180: unrecognized OpenMP #pragma
+  #pragma omp simd
   ^
 
 src/hydro/hydro_diffusion/viscosity.cpp(57): warning #3180: unrecognized OpenMP #pragma
@@ -1802,33 +1847,8 @@ src/hydro/hydro_diffusion/viscosity.cpp(114): warning #3180: unrecognized OpenMP
   #pragma omp simd private(nu1, denf, flx1, flx2, flx3)
   ^
 
-In file included from src/hydro/hydro_diffusion/conduction.cpp(17):
-src/hydro/hydro_diffusion/../../eos/eos.hpp(67): warning #3180: unrecognized OpenMP #pragma
-  #pragma omp declare simd simdlen(SIMD_WIDTH) uniform(this,prim,k,j) linear(i)
-  ^
-
 src/hydro/hydro_diffusion/viscosity.cpp(129): warning #3180: unrecognized OpenMP #pragma
   #pragma omp simd
-  ^
-
-In file included from src/hydro/hydro_diffusion/conduction.cpp(17):
-src/hydro/hydro_diffusion/../../eos/eos.hpp(70): warning #3180: unrecognized OpenMP #pragma
-  #pragma omp declare simd simdlen(SIMD_WIDTH) uniform(this,s,n,k,j) linear(i)
-  ^
-
-In file included from src/hydro/hydro_diffusion/conduction.cpp(17):
-src/hydro/hydro_diffusion/../../eos/eos.hpp(73): warning #3180: unrecognized OpenMP #pragma
-  #pragma omp declare simd simdlen(SIMD_WIDTH) uniform(this,s,w,r,n,k,j) linear(i)
-  ^
-
-In file included from src/hydro/hydro_diffusion/conduction.cpp(17):
-src/hydro/hydro_diffusion/../../eos/eos.hpp(80): warning #3180: unrecognized OpenMP #pragma
-  #pragma omp declare simd simdlen(SIMD_WIDTH) uniform(this)
-  ^
-
-In file included from src/hydro/hydro_diffusion/conduction.cpp(17):
-src/hydro/hydro_diffusion/../../eos/eos.hpp(83): warning #3180: unrecognized OpenMP #pragma
-  #pragma omp declare simd simdlen(SIMD_WIDTH) uniform(this,prim,cons,bcc,k,j) linear(i)
   ^
 
 src/hydro/hydro_diffusion/viscosity.cpp(155): warning #3180: unrecognized OpenMP #pragma
@@ -1879,16 +1899,8 @@ src/hydro/hydro_diffusion/viscosity.cpp(349): warning #3180: unrecognized OpenMP
   #pragma omp simd
   ^
 
-src/hydro/hydro_diffusion/conduction.cpp(47): warning #3180: unrecognized OpenMP #pragma
-  #pragma omp simd private(kappaf, denf, dTdx)
-  ^
-
 src/hydro/hydro_diffusion/viscosity.cpp(358): warning #3180: unrecognized OpenMP #pragma
   #pragma omp simd
-  ^
-
-src/hydro/hydro_diffusion/conduction.cpp(70): warning #3180: unrecognized OpenMP #pragma
-  #pragma omp simd private(kappaf, denf, dTdy)
   ^
 
 src/hydro/hydro_diffusion/viscosity.cpp(372): warning #3180: unrecognized OpenMP #pragma
@@ -1903,10 +1915,6 @@ src/hydro/hydro_diffusion/viscosity.cpp(389): warning #3180: unrecognized OpenMP
   #pragma omp simd
   ^
 
-src/hydro/hydro_diffusion/conduction.cpp(94): warning #3180: unrecognized OpenMP #pragma
-  #pragma omp simd private(kappaf, denf, dTdz)
-  ^
-
 src/hydro/hydro_diffusion/viscosity.cpp(403): warning #3180: unrecognized OpenMP #pragma
   #pragma omp simd
   ^
@@ -1915,15 +1923,7 @@ src/hydro/hydro_diffusion/viscosity.cpp(410): warning #3180: unrecognized OpenMP
   #pragma omp simd
   ^
 
-src/hydro/hydro_diffusion/conduction.cpp(127): warning #3180: unrecognized OpenMP #pragma
-  #pragma omp simd
-  ^
-
 src/hydro/hydro_diffusion/viscosity.cpp(421): warning #3180: unrecognized OpenMP #pragma
-  #pragma omp simd
-  ^
-
-src/hydro/hydro_diffusion/conduction.cpp(136): warning #3180: unrecognized OpenMP #pragma
   #pragma omp simd
   ^
 
@@ -2035,7 +2035,6 @@ src/nr_radiation/integrators/rad_integrators.cpp(433): warning #3180: unrecogniz
 
 mpicxx -I/hpc/software/spack_v20d1/spack/opt/spack/linux-rhel7-x86_64/intel-2021.4.0/hdf5-1.10.7-exmishiaff3ugqbeeimkqvnwrir76sxh/include -O3 -std=c++11 -fopenmp -qno-openmp-simd -c src/nr_radiation/integrators/frame_transform.cpp -o obj/frame_transform.o
 mpicxx -I/hpc/software/spack_v20d1/spack/opt/spack/linux-rhel7-x86_64/intel-2021.4.0/hdf5-1.10.7-exmishiaff3ugqbeeimkqvnwrir76sxh/include -O3 -std=c++11 -fopenmp -qno-openmp-simd -c src/nr_radiation/integrators/rad_source.cpp -o obj/rad_source.o
-mpicxx -I/hpc/software/spack_v20d1/spack/opt/spack/linux-rhel7-x86_64/intel-2021.4.0/hdf5-1.10.7-exmishiaff3ugqbeeimkqvnwrir76sxh/include -O3 -std=c++11 -fopenmp -qno-openmp-simd -c src/nr_radiation/integrators/rad_transport.cpp -o obj/rad_transport.o
 In file included from src/nr_radiation/integrators/rad_source.cpp(32):
 src/nr_radiation/integrators/../../eos/eos.hpp(67): warning #3180: unrecognized OpenMP #pragma
   #pragma omp declare simd simdlen(SIMD_WIDTH) uniform(this,prim,k,j) linear(i)
@@ -2061,6 +2060,7 @@ src/nr_radiation/integrators/../../eos/eos.hpp(83): warning #3180: unrecognized 
   #pragma omp declare simd simdlen(SIMD_WIDTH) uniform(this,prim,cons,bcc,k,j) linear(i)
   ^
 
+mpicxx -I/hpc/software/spack_v20d1/spack/opt/spack/linux-rhel7-x86_64/intel-2021.4.0/hdf5-1.10.7-exmishiaff3ugqbeeimkqvnwrir76sxh/include -O3 -std=c++11 -fopenmp -qno-openmp-simd -c src/nr_radiation/integrators/rad_transport.cpp -o obj/rad_transport.o
 src/nr_radiation/integrators/rad_source.cpp(316): warning #3180: unrecognized OpenMP #pragma
   #pragma omp simd
   ^
@@ -2075,6 +2075,7 @@ src/nr_radiation/integrators/rad_source.cpp(485): warning #3180: unrecognized Op
 
 mpicxx -I/hpc/software/spack_v20d1/spack/opt/spack/linux-rhel7-x86_64/intel-2021.4.0/hdf5-1.10.7-exmishiaff3ugqbeeimkqvnwrir76sxh/include -O3 -std=c++11 -fopenmp -qno-openmp-simd -c src/nr_radiation/integrators/multi_group.cpp -o obj/multi_group.o
 mpicxx -I/hpc/software/spack_v20d1/spack/opt/spack/linux-rhel7-x86_64/intel-2021.4.0/hdf5-1.10.7-exmishiaff3ugqbeeimkqvnwrir76sxh/include -O3 -std=c++11 -fopenmp -qno-openmp-simd -c src/nr_radiation/integrators/srcterms/absorption_scattering.cpp -o obj/absorption_scattering.o
+mpicxx -I/hpc/software/spack_v20d1/spack/opt/spack/linux-rhel7-x86_64/intel-2021.4.0/hdf5-1.10.7-exmishiaff3ugqbeeimkqvnwrir76sxh/include -O3 -std=c++11 -fopenmp -qno-openmp-simd -c src/nr_radiation/integrators/srcterms/multigroup_abs_sca.cpp -o obj/multigroup_abs_sca.o
 In file included from src/nr_radiation/integrators/srcterms/absorption_scattering.cpp(30):
 src/nr_radiation/integrators/srcterms/../../../eos/eos.hpp(67): warning #3180: unrecognized OpenMP #pragma
   #pragma omp declare simd simdlen(SIMD_WIDTH) uniform(this,prim,k,j) linear(i)
@@ -2100,61 +2101,60 @@ src/nr_radiation/integrators/srcterms/../../../eos/eos.hpp(83): warning #3180: u
   #pragma omp declare simd simdlen(SIMD_WIDTH) uniform(this,prim,cons,bcc,k,j) linear(i)
   ^
 
-mpicxx -I/hpc/software/spack_v20d1/spack/opt/spack/linux-rhel7-x86_64/intel-2021.4.0/hdf5-1.10.7-exmishiaff3ugqbeeimkqvnwrir76sxh/include -O3 -std=c++11 -fopenmp -qno-openmp-simd -c src/nr_radiation/integrators/srcterms/multigroup_abs_sca.cpp -o obj/multigroup_abs_sca.o
 mpicxx -I/hpc/software/spack_v20d1/spack/opt/spack/linux-rhel7-x86_64/intel-2021.4.0/hdf5-1.10.7-exmishiaff3ugqbeeimkqvnwrir76sxh/include -O3 -std=c++11 -fopenmp -qno-openmp-simd -c src/nr_radiation/integrators/srcterms/compton.cpp -o obj/compton.o
 mpicxx -I/hpc/software/spack_v20d1/spack/opt/spack/linux-rhel7-x86_64/intel-2021.4.0/hdf5-1.10.7-exmishiaff3ugqbeeimkqvnwrir76sxh/include -O3 -std=c++11 -fopenmp -qno-openmp-simd -c src/nr_radiation/implicit/radiation_implicit.cpp -o obj/radiation_implicit.o
-In file included from src/nr_radiation/integrators/srcterms/multigroup_abs_sca.cpp(29):
-src/nr_radiation/integrators/srcterms/../../../eos/eos.hpp(67): warning #3180: unrecognized OpenMP #pragma
-  #pragma omp declare simd simdlen(SIMD_WIDTH) uniform(this,prim,k,j) linear(i)
-  ^
-
-In file included from src/nr_radiation/integrators/srcterms/multigroup_abs_sca.cpp(29):
-src/nr_radiation/integrators/srcterms/../../../eos/eos.hpp(70): warning #3180: unrecognized OpenMP #pragma
-  #pragma omp declare simd simdlen(SIMD_WIDTH) uniform(this,s,n,k,j) linear(i)
-  ^
-
-In file included from src/nr_radiation/integrators/srcterms/multigroup_abs_sca.cpp(29):
-src/nr_radiation/integrators/srcterms/../../../eos/eos.hpp(73): warning #3180: unrecognized OpenMP #pragma
-  #pragma omp declare simd simdlen(SIMD_WIDTH) uniform(this,s,w,r,n,k,j) linear(i)
-  ^
-
-In file included from src/nr_radiation/integrators/srcterms/multigroup_abs_sca.cpp(29):
-src/nr_radiation/integrators/srcterms/../../../eos/eos.hpp(80): warning #3180: unrecognized OpenMP #pragma
-  #pragma omp declare simd simdlen(SIMD_WIDTH) uniform(this)
-  ^
-
-In file included from src/nr_radiation/integrators/srcterms/multigroup_abs_sca.cpp(29):
-src/nr_radiation/integrators/srcterms/../../../eos/eos.hpp(83): warning #3180: unrecognized OpenMP #pragma
-  #pragma omp declare simd simdlen(SIMD_WIDTH) uniform(this,prim,cons,bcc,k,j) linear(i)
-  ^
-
 mpicxx -I/hpc/software/spack_v20d1/spack/opt/spack/linux-rhel7-x86_64/intel-2021.4.0/hdf5-1.10.7-exmishiaff3ugqbeeimkqvnwrir76sxh/include -O3 -std=c++11 -fopenmp -qno-openmp-simd -c src/nr_radiation/implicit/rad_iteration.cpp -o obj/rad_iteration.o
-In file included from src/nr_radiation/integrators/srcterms/compton.cpp(24):
+In file included from src/nr_radiation/integrators/srcterms/multigroup_abs_sca.cpp(29):
 src/nr_radiation/integrators/srcterms/../../../eos/eos.hpp(67): warning #3180: unrecognized OpenMP #pragma
   #pragma omp declare simd simdlen(SIMD_WIDTH) uniform(this,prim,k,j) linear(i)
   ^
 
-In file included from src/nr_radiation/integrators/srcterms/compton.cpp(24):
+In file included from src/nr_radiation/integrators/srcterms/multigroup_abs_sca.cpp(29):
 src/nr_radiation/integrators/srcterms/../../../eos/eos.hpp(70): warning #3180: unrecognized OpenMP #pragma
   #pragma omp declare simd simdlen(SIMD_WIDTH) uniform(this,s,n,k,j) linear(i)
   ^
 
-In file included from src/nr_radiation/integrators/srcterms/compton.cpp(24):
+In file included from src/nr_radiation/integrators/srcterms/multigroup_abs_sca.cpp(29):
 src/nr_radiation/integrators/srcterms/../../../eos/eos.hpp(73): warning #3180: unrecognized OpenMP #pragma
   #pragma omp declare simd simdlen(SIMD_WIDTH) uniform(this,s,w,r,n,k,j) linear(i)
   ^
 
-In file included from src/nr_radiation/integrators/srcterms/compton.cpp(24):
+In file included from src/nr_radiation/integrators/srcterms/multigroup_abs_sca.cpp(29):
 src/nr_radiation/integrators/srcterms/../../../eos/eos.hpp(80): warning #3180: unrecognized OpenMP #pragma
   #pragma omp declare simd simdlen(SIMD_WIDTH) uniform(this)
   ^
 
-In file included from src/nr_radiation/integrators/srcterms/compton.cpp(24):
+In file included from src/nr_radiation/integrators/srcterms/multigroup_abs_sca.cpp(29):
 src/nr_radiation/integrators/srcterms/../../../eos/eos.hpp(83): warning #3180: unrecognized OpenMP #pragma
   #pragma omp declare simd simdlen(SIMD_WIDTH) uniform(this,prim,cons,bcc,k,j) linear(i)
   ^
 
 mpicxx -I/hpc/software/spack_v20d1/spack/opt/spack/linux-rhel7-x86_64/intel-2021.4.0/hdf5-1.10.7-exmishiaff3ugqbeeimkqvnwrir76sxh/include -O3 -std=c++11 -fopenmp -qno-openmp-simd -c src/nr_radiation/implicit/implicit_angular_flux.cpp -o obj/implicit_angular_flux.o
+In file included from src/nr_radiation/integrators/srcterms/compton.cpp(24):
+src/nr_radiation/integrators/srcterms/../../../eos/eos.hpp(67): warning #3180: unrecognized OpenMP #pragma
+  #pragma omp declare simd simdlen(SIMD_WIDTH) uniform(this,prim,k,j) linear(i)
+  ^
+
+In file included from src/nr_radiation/integrators/srcterms/compton.cpp(24):
+src/nr_radiation/integrators/srcterms/../../../eos/eos.hpp(70): warning #3180: unrecognized OpenMP #pragma
+  #pragma omp declare simd simdlen(SIMD_WIDTH) uniform(this,s,n,k,j) linear(i)
+  ^
+
+In file included from src/nr_radiation/integrators/srcterms/compton.cpp(24):
+src/nr_radiation/integrators/srcterms/../../../eos/eos.hpp(73): warning #3180: unrecognized OpenMP #pragma
+  #pragma omp declare simd simdlen(SIMD_WIDTH) uniform(this,s,w,r,n,k,j) linear(i)
+  ^
+
+In file included from src/nr_radiation/integrators/srcterms/compton.cpp(24):
+src/nr_radiation/integrators/srcterms/../../../eos/eos.hpp(80): warning #3180: unrecognized OpenMP #pragma
+  #pragma omp declare simd simdlen(SIMD_WIDTH) uniform(this)
+  ^
+
+In file included from src/nr_radiation/integrators/srcterms/compton.cpp(24):
+src/nr_radiation/integrators/srcterms/../../../eos/eos.hpp(83): warning #3180: unrecognized OpenMP #pragma
+  #pragma omp declare simd simdlen(SIMD_WIDTH) uniform(this,prim,cons,bcc,k,j) linear(i)
+  ^
+
 mpicxx -I/hpc/software/spack_v20d1/spack/opt/spack/linux-rhel7-x86_64/intel-2021.4.0/hdf5-1.10.7-exmishiaff3ugqbeeimkqvnwrir76sxh/include -O3 -std=c++11 -fopenmp -qno-openmp-simd -c src/nr_radiation/implicit/implicit_first_order.cpp -o obj/implicit_first_order.o
 mpicxx -I/hpc/software/spack_v20d1/spack/opt/spack/linux-rhel7-x86_64/intel-2021.4.0/hdf5-1.10.7-exmishiaff3ugqbeeimkqvnwrir76sxh/include -O3 -std=c++11 -fopenmp -qno-openmp-simd -c src/cr/cr.cpp -o obj/cr.o
 mpicxx -I/hpc/software/spack_v20d1/spack/opt/spack/linux-rhel7-x86_64/intel-2021.4.0/hdf5-1.10.7-exmishiaff3ugqbeeimkqvnwrir76sxh/include -O3 -std=c++11 -fopenmp -qno-openmp-simd -c src/cr/integrators/cr_flux.cpp -o obj/cr_flux.o
@@ -2721,7 +2721,6 @@ src/orbital_advection/orbital_system_conversion.cpp(99): warning #3180: unrecogn
   #pragma omp simd
   ^
 
-mpicxx -I/hpc/software/spack_v20d1/spack/opt/spack/linux-rhel7-x86_64/intel-2021.4.0/hdf5-1.10.7-exmishiaff3ugqbeeimkqvnwrir76sxh/include -O3 -std=c++11 -fopenmp -qno-openmp-simd -c src/orbital_advection/default_orbital_velocity.cpp -o obj/default_orbital_velocity.o
 src/orbital_advection/set_orbital_advection.cpp(51): warning #3180: unrecognized OpenMP #pragma
   #pragma omp simd
   ^
@@ -2754,6 +2753,7 @@ src/orbital_advection/set_orbital_advection.cpp(169): warning #3180: unrecognize
   #pragma omp simd
   ^
 
+mpicxx -I/hpc/software/spack_v20d1/spack/opt/spack/linux-rhel7-x86_64/intel-2021.4.0/hdf5-1.10.7-exmishiaff3ugqbeeimkqvnwrir76sxh/include -O3 -std=c++11 -fopenmp -qno-openmp-simd -c src/orbital_advection/default_orbital_velocity.cpp -o obj/default_orbital_velocity.o
 mpicxx -I/hpc/software/spack_v20d1/spack/opt/spack/linux-rhel7-x86_64/intel-2021.4.0/hdf5-1.10.7-exmishiaff3ugqbeeimkqvnwrir76sxh/include -O3 -std=c++11 -fopenmp -qno-openmp-simd -c src/orbital_advection/orbital_remapping.cpp -o obj/orbital_remapping.o
 mpicxx -I/hpc/software/spack_v20d1/spack/opt/spack/linux-rhel7-x86_64/intel-2021.4.0/hdf5-1.10.7-exmishiaff3ugqbeeimkqvnwrir76sxh/include -O3 -std=c++11 -fopenmp -qno-openmp-simd -c src/orbital_advection/orbital_advection.cpp -o obj/orbital_advection.o
 src/orbital_advection/orbital_remapping.cpp(43): warning #3180: unrecognized OpenMP #pragma
@@ -3964,6 +3964,7 @@ src/scalars/scalar_diffusion.cpp(202): warning #3180: unrecognized OpenMP #pragm
   ^
 
 mpicxx -I/hpc/software/spack_v20d1/spack/opt/spack/linux-rhel7-x86_64/intel-2021.4.0/hdf5-1.10.7-exmishiaff3ugqbeeimkqvnwrir76sxh/include -O3 -std=c++11 -fopenmp -qno-openmp-simd -c src/task_list/chem_rad_task_list.cpp -o obj/chem_rad_task_list.o
+mpicxx -I/hpc/software/spack_v20d1/spack/opt/spack/linux-rhel7-x86_64/intel-2021.4.0/hdf5-1.10.7-exmishiaff3ugqbeeimkqvnwrir76sxh/include -O3 -std=c++11 -fopenmp -qno-openmp-simd -c src/task_list/mg_task_list.cpp -o obj/mg_task_list.o
 In file included from src/task_list/time_integrator.cpp(24):
 src/task_list/../eos/eos.hpp(67): warning #3180: unrecognized OpenMP #pragma
   #pragma omp declare simd simdlen(SIMD_WIDTH) uniform(this,prim,k,j) linear(i)
@@ -3989,10 +3990,8 @@ src/task_list/../eos/eos.hpp(83): warning #3180: unrecognized OpenMP #pragma
   #pragma omp declare simd simdlen(SIMD_WIDTH) uniform(this,prim,cons,bcc,k,j) linear(i)
   ^
 
-mpicxx -I/hpc/software/spack_v20d1/spack/opt/spack/linux-rhel7-x86_64/intel-2021.4.0/hdf5-1.10.7-exmishiaff3ugqbeeimkqvnwrir76sxh/include -O3 -std=c++11 -fopenmp -qno-openmp-simd -c src/task_list/mg_task_list.cpp -o obj/mg_task_list.o
 mpicxx -I/hpc/software/spack_v20d1/spack/opt/spack/linux-rhel7-x86_64/intel-2021.4.0/hdf5-1.10.7-exmishiaff3ugqbeeimkqvnwrir76sxh/include -O3 -std=c++11 -fopenmp -qno-openmp-simd -c src/task_list/im_rad_task_list.cpp -o obj/im_rad_task_list.o
 mpicxx -I/hpc/software/spack_v20d1/spack/opt/spack/linux-rhel7-x86_64/intel-2021.4.0/hdf5-1.10.7-exmishiaff3ugqbeeimkqvnwrir76sxh/include -O3 -std=c++11 -fopenmp -qno-openmp-simd -c src/task_list/im_radhydro_task_list.cpp -o obj/im_radhydro_task_list.o
-mpicxx -I/hpc/software/spack_v20d1/spack/opt/spack/linux-rhel7-x86_64/intel-2021.4.0/hdf5-1.10.7-exmishiaff3ugqbeeimkqvnwrir76sxh/include -O3 -std=c++11 -fopenmp -qno-openmp-simd -c src/task_list/crdiffusion_task_list.cpp -o obj/crdiffusion_task_list.o
 In file included from src/task_list/im_radhydro_task_list.cpp(20):
 src/task_list/../eos/eos.hpp(67): warning #3180: unrecognized OpenMP #pragma
   #pragma omp declare simd simdlen(SIMD_WIDTH) uniform(this,prim,k,j) linear(i)
@@ -4018,9 +4017,9 @@ src/task_list/../eos/eos.hpp(83): warning #3180: unrecognized OpenMP #pragma
   #pragma omp declare simd simdlen(SIMD_WIDTH) uniform(this,prim,cons,bcc,k,j) linear(i)
   ^
 
+mpicxx -I/hpc/software/spack_v20d1/spack/opt/spack/linux-rhel7-x86_64/intel-2021.4.0/hdf5-1.10.7-exmishiaff3ugqbeeimkqvnwrir76sxh/include -O3 -std=c++11 -fopenmp -qno-openmp-simd -c src/task_list/crdiffusion_task_list.cpp -o obj/crdiffusion_task_list.o
 mpicxx -I/hpc/software/spack_v20d1/spack/opt/spack/linux-rhel7-x86_64/intel-2021.4.0/hdf5-1.10.7-exmishiaff3ugqbeeimkqvnwrir76sxh/include -O3 -std=c++11 -fopenmp -qno-openmp-simd -c src/task_list/sts_task_list.cpp -o obj/sts_task_list.o
 mpicxx -I/hpc/software/spack_v20d1/spack/opt/spack/linux-rhel7-x86_64/intel-2021.4.0/hdf5-1.10.7-exmishiaff3ugqbeeimkqvnwrir76sxh/include -O3 -std=c++11 -fopenmp -qno-openmp-simd -c src/task_list/grav_task_list.cpp -o obj/grav_task_list.o
-mpicxx -I/hpc/software/spack_v20d1/spack/opt/spack/linux-rhel7-x86_64/intel-2021.4.0/hdf5-1.10.7-exmishiaff3ugqbeeimkqvnwrir76sxh/include -O3 -std=c++11 -fopenmp -qno-openmp-simd -c src/task_list/task_id.cpp -o obj/task_id.o
 In file included from src/task_list/sts_task_list.cpp(27):
 src/task_list/../eos/eos.hpp(67): warning #3180: unrecognized OpenMP #pragma
   #pragma omp declare simd simdlen(SIMD_WIDTH) uniform(this,prim,k,j) linear(i)
@@ -4046,6 +4045,7 @@ src/task_list/../eos/eos.hpp(83): warning #3180: unrecognized OpenMP #pragma
   #pragma omp declare simd simdlen(SIMD_WIDTH) uniform(this,prim,cons,bcc,k,j) linear(i)
   ^
 
+mpicxx -I/hpc/software/spack_v20d1/spack/opt/spack/linux-rhel7-x86_64/intel-2021.4.0/hdf5-1.10.7-exmishiaff3ugqbeeimkqvnwrir76sxh/include -O3 -std=c++11 -fopenmp -qno-openmp-simd -c src/task_list/task_id.cpp -o obj/task_id.o
 mpicxx -I/hpc/software/spack_v20d1/spack/opt/spack/linux-rhel7-x86_64/intel-2021.4.0/hdf5-1.10.7-exmishiaff3ugqbeeimkqvnwrir76sxh/include -O3 -std=c++11 -fopenmp -qno-openmp-simd -c src/task_list/im_rad_compt_task_list.cpp -o obj/im_rad_compt_task_list.o
 mpicxx -I/hpc/software/spack_v20d1/spack/opt/spack/linux-rhel7-x86_64/intel-2021.4.0/hdf5-1.10.7-exmishiaff3ugqbeeimkqvnwrir76sxh/include -O3 -std=c++11 -fopenmp -qno-openmp-simd -c src/task_list/task_list.cpp -o obj/task_list.o
 mpicxx -I/hpc/software/spack_v20d1/spack/opt/spack/linux-rhel7-x86_64/intel-2021.4.0/hdf5-1.10.7-exmishiaff3ugqbeeimkqvnwrir76sxh/include -O3 -std=c++11 -fopenmp -qno-openmp-simd -c src/task_list/im_radit_task_list.cpp -o obj/im_radit_task_list.o
