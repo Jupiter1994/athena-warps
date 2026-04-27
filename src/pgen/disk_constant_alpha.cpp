@@ -45,7 +45,8 @@ Real R_gap, Delta_gap, depth_gap; // gapped density profile parameters
 Real dfloor;
 Real Omega0;
 Real alpha_const; // alpha viscosity parameter
-Real W_in; // updated in Mesh::UserWorkInLoop
+Real r_in; // inner radius of disk
+Real L_in[3] = {0.0, 0.0, 1.0}; // unit ang mom vector (Cartesian) at r_in
 } // anonymous namespace
 
 // User-defined boundary conditions for disk simulations
@@ -95,9 +96,6 @@ void Mesh::InitUserMeshData(ParameterInput *pin) {
   // Get parameter for viscosity
   alpha_const = pin->GetReal("problem","alpha_const");
 
-  // for an initially flat disk, W_in = W_out at the start
-  W_in = pin->GetReal("problem","W_out",0.0); 
-
   // Get parameters of initial pressure and cooling parameters
   if (NON_BAROTROPIC_EOS) {
     p0_over_r0 = pin->GetOrAddReal("problem","p0_over_r0",0.0025);
@@ -111,6 +109,11 @@ void Mesh::InitUserMeshData(ParameterInput *pin) {
   dfloor=pin->GetOrAddReal("hydro","dfloor",(1024*(float_min)));
 
   Omega0 = pin->GetOrAddReal("orbital_advection","Omega0",0.0);
+  
+  r_in = pin->GetReal("problem", "r_in");
+  // TODO: once I add W_out, uncomment below two lines
+  // L_in[0] = -std::sin(W_out);
+  // L_in[2] = std::cos(W_out); 
 
   // enroll user-defined boundary condition
   if (mesh_bcs[BoundaryFace::inner_x1] == GetBoundaryFlag("user")) {
@@ -186,20 +189,49 @@ void MeshBlock::ProblemGenerator(ParameterInput *pin) {
 }
 
 void Mesh::UserWorkInLoop() {
+  
+  // this mesh's contribution to the ang mom (L) vector at r_in
+  // (by "mesh", I mean the set of MeshBlocks on a particular
+  // process, NOT the whole sim domain)
+  // WARNING: L is in Cartesian coordinates.
+  Real mesh_L_in[3] = {0.0, 0.0, 0.0};
+  // variables specific to this mesh 
+  Real r, theta, phi;
+  Real mb_L_in[3] = {0.0, 0.0, 0.0}; 
 
-  // definitions, etc
-  Real local_weighted_Win = 0.0;
+  // calculate this mesh's contribution to L(r_in)
+  for (int b=0; b<nblocal; ++b) {
+    MeshBlock *pmb = my_blocks(b);
+    int il = pmb->is;
+    // ignore MeshBlocks that don't include r_in
+    if (pmb->pcoord->x1v(il) > r_in) {
+	continue;
+    }
+    int iu = pmb->ie, jl = pmb->js, ju = pmb->je,
+        kl = pmb->ks, ku = pmb->ke;
+    for (int i=il; i<=iu; i++) {
+      r = pmb->pcoord->x1v(i);
+      // ignore MeshBlocks that aren't at r_in
+      if (r != r_in) {
+        continue;
+      }
+      // TODO: calculate mb_L_in for 
+    
+    }
 
-  // calculate (weighted) contribution to W_in at inner boundary
-
+    // else, calculate mb_L_vec = rho*(r x v) in Cart. coords,
+    // then add to mesh_L_vec
+    mesh_L_in += mb_L_in;
+  }
 
   // send W_in to all cores/processes
   #ifdef MPI_PARALLEL
-      MPI_Allreduce(&local_weighted_Win, &W_in, 1, MPI_ATHENA_REAL, MPI_SUM, MPI_COMM_WORLD);
+      MPI_Allreduce(&mesh_L_in, &L_in, 3, MPI_ATHENA_REAL, MPI_SUM, MPI_COMM_WORLD);
   #else // if only using one core
-      W_in = local_weighted_Win;
+      std::copy(mesh_L_in, mesh_L_in+3, L_in);
+      // L_in = mesh_L_in; // sloppy imo
   #endif
-
+ 
   return;
 }
 
