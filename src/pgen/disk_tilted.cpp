@@ -314,7 +314,7 @@ void VelCartToSph(Real theta, Real phi, Real vx, Real vy, Real vz,
       {std::sin(theta)*std::cos(phi), std::sin(theta)*std::sin(phi), std::cos(theta)};
   std::vector<Real> thetaHat = 
       {std::cos(theta)*std::cos(phi), std::cos(theta)*std::sin(phi), -std::sin(theta)};
-  std::vector<Real> phiHat = {-std::sin(phi), std::cos(phi)};
+  std::vector<Real> phiHat = {-std::sin(phi), std::cos(phi), 0};
 
   vr = std::inner_product(vCart.begin(), vCart.end(), rHat.begin(), 0);
   vtheta = std::inner_product(vCart.begin(), vCart.end(), thetaHat.begin(), 0);

@@ -203,7 +203,7 @@ void Mesh::UserWorkInLoop() {
   for (int b=0; b<nblocal; ++b) {
     MeshBlock *pmb = my_blocks(b);
     int il = pmb->is;
-    // ignore MeshBlocks that don't include r_in
+    // ignore MeshBlocks (mbs) that don't include r_in
     if (pmb->pcoord->x1v(il) > r_in) {
 	continue;
     }
@@ -211,16 +211,21 @@ void Mesh::UserWorkInLoop() {
         kl = pmb->ks, ku = pmb->ke;
     for (int i=il; i<=iu; i++) {
       r = pmb->pcoord->x1v(i);
-      // ignore MeshBlocks that aren't at r_in
+      // ignore mbs that aren't at r_in
       if (r != r_in) {
         continue;
       }
-      // TODO: calculate mb_L_in for 
-    
-    }
+      // TODO: calculate L_in of this mb
+      for (int j=jl; j<ju; j++) {
+        for (int k=kl; k<ku; k++) {
+	  theta = pmb->pcoord->x1v(j);
+	  phi = pmb->pcoord->x1v(k);
+          
 
-    // else, calculate mb_L_vec = rho*(r x v) in Cart. coords,
-    // then add to mesh_L_vec
+	}
+      }   
+    }
+   
     mesh_L_in += mb_L_in;
   }
 
