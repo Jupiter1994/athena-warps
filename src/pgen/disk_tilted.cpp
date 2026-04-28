@@ -291,8 +291,8 @@ void SphToCyl(Real r, Real theta, Real phi, Real &R, Real &Phi, Real &z) {
  */
 void CartToSph(Real x, Real y, Real z, Real &r, Real &theta, Real &phi) {
 
-  r = std::hypot(hypot(x,y),z);
-  theta = std::atan2(hypot(x,y), z);
+  r = std::sqrt(x*x + y*y + z*z);
+  theta = std::atan2(std::hypot(x,y), z);
   phi = std::atan2(y, x); 
   
   return;

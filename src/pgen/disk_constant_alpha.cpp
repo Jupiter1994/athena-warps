@@ -46,7 +46,9 @@ Real dfloor;
 Real Omega0;
 Real alpha_const; // alpha viscosity parameter
 Real r_in; // inner radius of disk
-Real L_in[3] = {0.0, 0.0, 1.0}; // unit ang mom vector (Cartesian) at r_in
+Real W_out; // outer inclination of disk
+Real L_in[3] = {0.0, 0.0, 1.0}; // ang mom vector (Cartesian) at r_in
+Real L_out[3] = {0.0, 0.0, 1.0}; // ang mom vector (Cartesian) at r_out
 } // anonymous namespace
 
 // User-defined boundary conditions for disk simulations
@@ -109,11 +111,14 @@ void Mesh::InitUserMeshData(ParameterInput *pin) {
   dfloor=pin->GetOrAddReal("hydro","dfloor",(1024*(float_min)));
 
   Omega0 = pin->GetOrAddReal("orbital_advection","Omega0",0.0);
-  
-  r_in = pin->GetReal("problem", "r_in");
-  // TODO: once I add W_out, uncomment below two lines
-  // L_in[0] = -std::sin(W_out);
-  // L_in[2] = std::cos(W_out); 
+ 
+  // variables for setting boundary conditions
+  r_in = pin->GetReal("problem", "r_in"); 
+  W_out = pin->GetOrAddReal("problem", "W_out", 0.0);
+  L_in[0] = -std::sin(W_out);
+  L_in[2] = std::cos(W_out); 
+  L_out[0] = -std::sin(W_out);
+  L_out[2] = std::cos(W_out);
 
   // enroll user-defined boundary condition
   if (mesh_bcs[BoundaryFace::inner_x1] == GetBoundaryFlag("user")) {
@@ -195,11 +200,12 @@ void Mesh::UserWorkInLoop() {
   // process, NOT the whole sim domain)
   // WARNING: L is in Cartesian coordinates.
   Real mesh_L_in[3] = {0.0, 0.0, 0.0};
-  // variables specific to this mesh 
-  Real r, theta, phi;
-  Real mb_L_in[3] = {0.0, 0.0, 0.0}; 
+  // variables that are updated for every MeshBlock (mb) 
+  Real den;
+  Real r, theta, phi, vr, vtheta, vphi;
+  Real x, y, z, vx, vy, vz;
 
-  // calculate this mesh's contribution to L(r_in)
+  // this loop calculates this mesh's contribution to L(r_in)
   for (int b=0; b<nblocal; ++b) {
     MeshBlock *pmb = my_blocks(b);
     int il = pmb->is;
@@ -215,21 +221,33 @@ void Mesh::UserWorkInLoop() {
       if (r != r_in) {
         continue;
       }
-      // TODO: calculate L_in of this mb
+      // adds this mb's L_in to the mesh's L_in
       for (int j=jl; j<ju; j++) {
         for (int k=kl; k<ku; k++) {
 	  theta = pmb->pcoord->x1v(j);
 	  phi = pmb->pcoord->x1v(k);
-          
 
+          den = prim(IDN,k,j,i);
+	  vr = prim(IM1,k,j,i);
+	  vtheta = prim(IM2,k,j,i);
+	  vphi = prim(IM3,k,j,i);
+
+          SphToCart(r, theta, phi, x, y, z);	  
+          VelSphToCart(theta, phi, vr, vtheta, vphi,
+	     vx, vy, vz);
+   	  
+	  // L = m(r x v)
+	  mesh_L_in[0] += den * (y*vz - z*vy);
+	  mesh_L_in[1] += den * (z*vx - x*vz);
+	  mesh_L_in[2] += den * (x*vy - y*vx);
+	  
 	}
       }   
-    }
+    } // end of i,j,k loop within this mb
    
-    mesh_L_in += mb_L_in;
-  }
+  } // end of loop within mesh
 
-  // send W_in to all cores/processes
+  // send L_in to all cores/processes
   #ifdef MPI_PARALLEL
       MPI_Allreduce(&mesh_L_in, &L_in, 3, MPI_ATHENA_REAL, MPI_SUM, MPI_COMM_WORLD);
   #else // if only using one core
@@ -297,6 +315,85 @@ void alpha_viscosity(HydroDiffusion *phdif, MeshBlock *pmb,
   return;
 }
 
+// namespace for custom helper functions, eg,
+// coordinate transformations
+namespace {
+
+/*
+ * Converts spherical coordinates to Cartesian.
+ *
+ * r,theta,phi: spherical coordinates
+ * x,y,z: references to the (Cartesian) coordinates you're setting
+ */
+void SphToCart(Real r, Real theta, Real phi, Real &x, Real &y, Real &z) { 
+  x = r * std::sin(theta) * std::cos(phi);
+  y = r * std::sin(theta) * std::sin(phi);
+  z = r * std::cos(theta);
+  
+  return;
+
+}
+
+/**
+* Converts a spherical velocity vector to Cartesian coordinates. Note that 
+* this requires the position vector’s theta and phi coordinates.
+*/
+void VelSphToCart(Real theta, Real phi, Real vr, Real vtheta, Real vphi,
+	       	Real &vx, Real &vy, Real &vz) {
+
+  // spherical unit vectors  
+  std::vector<Real> rHat = 
+      {std::sin(theta)*std::cos(phi), std::sin(theta)*std::sin(phi), std::cos(theta)};
+  std::vector<Real> thetaHat = 
+      {std::cos(theta)*std::cos(phi), std::cos(theta)*std::sin(phi), -std::sin(theta)};
+  std::vector<Real> phiHat = {-std::sin(phi), std::cos(phi)};
+
+  // Cartesian velocity vector
+  std::vector<Real> vCart = vr*rHat + vtheta*thetaHat + vphi*phiHat;
+  vx = vCart[0];
+  vy = vCart[1];
+  vz = vCart[2];
+
+  return;
+
+}
+
+/** 
+ * Given a point in spherical coordinates (r,theta,phi) and the local angular 
+ * momentum vector (L), calculate the point's distance from the midplane (z_mp).
+ */
+void GetZfromL(Real r, Real theta, Real phi, Real L[], Real &z_mp) {
+
+  Real x, y, z;
+
+  // normalize L (I suspect this affects the input array, but 
+  // we only use a given L once per timestep, so it shouldn't matter)
+  L /= std::sqrt(L[0]*L[0] + L[1]*L[1] + L[2]*L[2]);
+
+  // get Cartesian coordinates
+  SphToCart(r, theta, phi, x, y, z);
+
+  // z_mp is the dot product of Lhat with the position vector
+  z_mp = L[0]*x + L[1]*y + L[2]*z;
+
+  return;
+}
+
+//----------------------------------------------------------------------------------------
+//! computes radial velocity (v_r) for a 3D disk in steady-state, given the disk-frame
+// coordinates (rad, phi, z)
+
+Real VrProfileCyl(const Real rad, const Real phi, const Real z) {
+  Real p_over_r = PoverR(rad, phi, z);
+  Real vphi = VelProfileCyl(rad, phi, z);
+  Real z_over_H = z / std::sqrt(p_over_r) * (vphi/rad); // H=cs/Omega
+  Real vr = -alpha_const*p_over_r/vphi * (-3 + 4.5*SQR(z_over_H));  
+  return vr;
+}
+
+} // namespace for custom helper functions
+
+
 namespace {
 //----------------------------------------------------------------------------------------
 //! transform to cylindrical coordinate
@@ -361,7 +458,7 @@ Real VelProfileCyl(const Real rad, const Real phi, const Real z) {
   vel = std::sqrt(gm0/rad)*std::sqrt(vel) - rad*Omega0;
   return vel;
 }
-} // namespace
+} // namespace (for provided Athena++ functions)
 
 //----------------------------------------------------------------------------------------
 //! User-defined boundary Conditions: sets solution in ghost zones to initial values
@@ -369,10 +466,11 @@ Real VelProfileCyl(const Real rad, const Real phi, const Real z) {
 void DiskInnerX1(MeshBlock *pmb,Coordinates *pco, AthenaArray<Real> &prim, FaceField &b,
                  Real time, Real dt,
                  int il, int iu, int jl, int ju, int kl, int ku, int ngh) {
-  Real rad(0.0), phi(0.0), z(0.0);
+  Real rad(0.0), phi(0.0), z(0.0); // cylindrical coordinates at active cell (in disk's frame)
   Real vel;
-  Real rad_gh, z_gh; // cylindrical radius and height at ghost cell
+  Real rad_gh, z_gh; // cylindrical radius and height at ghost cell (in the disk's frame)
   Real r, r_gh; // spherical radii of last active and ghost cells, respectively
+  Real theta, phi; // angular coordinates
   OrbitalVelocityFunc &vK = pmb->porb->OrbitalVelocity;
 
   // printf("ngh= %1d \n", ngh);
@@ -399,12 +497,18 @@ void DiskInnerX1(MeshBlock *pmb,Coordinates *pco, AthenaArray<Real> &prim, FaceF
   } else if (std::strcmp(COORDINATE_SYSTEM, "spherical_polar") == 0) {
     for (int k=kl; k<=ku; ++k) {
       for (int j=jl; j<=ju; ++j) {
-        for (int i=1; i<=ngh; ++i) {
-          GetCylCoord(pco,rad_gh,phi,z_gh,il-i,j,k);
-          GetCylCoord(pco,rad,phi,z,il,j,k);
-
-	  r = pco->x1v(il);
+	r = pco->x1v(il);
+	theta = pco->x1v(j);
+	phi = pco->x1v(k);
+        GetZfromL(r, theta, phi, L_in, z);
+	rad = std::sqrt(r*r - z*z); 
+	for (int i=1; i<=ngh; ++i) {
 	  r_gh = pco->x1v(il-i);
+
+          //GetCylCoord(pco,rad_gh,phi,z_gh,il-i,j,k);
+          //GetCylCoord(pco,rad,phi,z,il,j,k); 
+	  GetZfromL(r_gh, theta, phi, L_in, z_gh);
+          rad_gh = std::sqrt(r_gh*r_gh - z_gh*z_gh);
 
           prim(IDN,k,j,il-i) = prim(IDN,k,j,il) *
 	  	DenProfileCyl(rad_gh,phi,z_gh)/DenProfileCyl(rad,phi,z);
@@ -413,7 +517,9 @@ void DiskInnerX1(MeshBlock *pmb,Coordinates *pco, AthenaArray<Real> &prim, FaceF
 	  // vel = VelProfileCyl(rad,phi,z);
           if (pmb->porb->orbital_advection_defined)
             vel -= vK(pmb->porb, pco->x1v(il-i), pco->x2v(j), pco->x3v(k));
-          prim(IM1,k,j,il-i) = prim(IM1,k,j,il) * std::pow(r_gh/r,0.5); // v_r
+          prim(IM1,k,j,il-i) = prim(IM1,k,j,il) *
+		 VrProfileCyl(rad_gh,phi,z_gh)/VrProfileCyl(rad,phi,z); // v_r
+	  //prim(IM1,k,j,il-i) = prim(IM1,k,j,il) * std::pow(r_gh/r,0.5); // v_r
           prim(IM2,k,j,il-i) = 0.0; // v_theta
           prim(IM3,k,j,il-i) = prim(IM3,k,j,il) * std::pow(r_gh/r,-0.5); // v_phi
           if (NON_BAROTROPIC_EOS)
@@ -431,9 +537,9 @@ void DiskOuterX1(MeshBlock *pmb,Coordinates *pco, AthenaArray<Real> &prim, FaceF
                  Real time, Real dt,
                  int il, int iu, int jl, int ju, int kl, int ku, int ngh) {
   Real rad(0.0), phi(0.0), z(0.0);
-  Real rad_gh, vK_gh, z_gh; // cylindrical R, v_K, and z
+  Real rad_gh, z_gh; // cylindrical R and z (in disk frame)
   Real r, r_gh; // spherical radii of last active and ghost cells, respectively
-  Real z_over_H; // z/H (used if coord sys is spherical)
+  Real theta, phi; // angular coordinates 
   Real den, vel;
   OrbitalVelocityFunc &vK = pmb->porb->OrbitalVelocity;
   if (std::strcmp(COORDINATE_SYSTEM, "cylindrical") == 0) {
@@ -464,19 +570,21 @@ void DiskOuterX1(MeshBlock *pmb,Coordinates *pco, AthenaArray<Real> &prim, FaceF
   } else if (std::strcmp(COORDINATE_SYSTEM, "spherical_polar") == 0) {
     for (int k=kl; k<=ku; ++k) {
       for (int j=jl; j<=ju; ++j) {
-        for (int i=1; i<=ngh; ++i) {
-          GetCylCoord(pco,rad_gh,phi,z_gh,iu+i,j,k);
-          //r = pco->x1v(iu);
+        theta = pco->x1v(j);
+        phi = pco->x1v(k);
+	for (int i=1; i<=ngh; ++i) {
+          //GetCylCoord(pco,rad_gh,phi,z_gh,iu+i,j,k);
+          //r = pco->x1v(iu); 
           r_gh = pco->x1v(iu+i);
+          GetZfromL(r_gh, theta, phi, L_out, z_gh); 
+          rad_gh = std::sqrt(r_gh*r_gh - z_gh*z_gh);
 
           //prim(IDN,k,j,iu+i) = prim(IDN,k,j,iu) * std::pow(r_gh/r,-1.5);
 	  prim(IDN,k,j,iu+i) = DenProfileCyl(rad_gh,phi,z_gh); // hold the outer rho fixed
           // vel = VelProfileCyl(rad,phi,z);
-	  vK_gh = std::sqrt(gm0/rad_gh);
           if (pmb->porb->orbital_advection_defined)
             vel -= vK(pmb->porb, pco->x1v(iu+i), pco->x2v(j), pco->x3v(k));
-	  z_over_H = z_gh / std::sqrt(p0_over_r0) * (vK_gh/rad_gh); // H=cs/Omega
-          prim(IM1,k,j,iu+i) = -alpha_const*p0_over_r0/vK_gh * (-3 + 4.5*SQR(z_over_H)); // v_r
+          prim(IM1,k,j,iu+i) = VrProfileCyl(rad_gh,phi,z_gh); // v_r
           prim(IM2,k,j,iu+i) = 0.0; // v_theta
           prim(IM3,k,j,iu+i) = VelProfileCyl(rad_gh,phi,z_gh); // v_phi
           if (NON_BAROTROPIC_EOS)
