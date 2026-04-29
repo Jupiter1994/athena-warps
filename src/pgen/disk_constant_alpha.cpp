@@ -39,6 +39,10 @@ void GetCylCoord(Coordinates *pco,Real &rad,Real &phi,Real &z,int i,int j,int k)
 Real DenProfileCyl(const Real rad, const Real phi, const Real z);
 Real PoverR(const Real rad, const Real phi, const Real z);
 Real VelProfileCyl(const Real rad, const Real phi, const Real z);
+// custom helper functions used in Mesh::UserWorkInLoop
+void SphToCart(Real r, Real theta, Real phi, Real &x, Real &y, Real &z);
+void VelSphToCart(Real theta, Real phi, Real vr, Real vtheta, Real vphi,
+	       	Real &vx, Real &vy, Real &vz);
 // problem parameters which are useful to make global to this file
 Real gm0, r0, rho0, dslope, p0_over_r0, pslope, gamma_gas;
 Real R_gap, Delta_gap, depth_gap; // gapped density profile parameters
@@ -194,7 +198,7 @@ void MeshBlock::ProblemGenerator(ParameterInput *pin) {
 }
 
 void Mesh::UserWorkInLoop() {
-  
+
   // this mesh's contribution to the ang mom (L) vector at r_in
   // (by "mesh", I mean the set of MeshBlocks on a particular
   // process, NOT the whole sim domain)
@@ -208,6 +212,9 @@ void Mesh::UserWorkInLoop() {
   // this loop calculates this mesh's contribution to L(r_in)
   for (int b=0; b<nblocal; ++b) {
     MeshBlock *pmb = my_blocks(b);
+    // primitive variables        
+    AthenaArray<Real> &w = pmb->phydro->w;
+
     int il = pmb->is;
     // ignore MeshBlocks (mbs) that don't include r_in
     if (pmb->pcoord->x1v(il) > r_in) {
@@ -227,10 +234,10 @@ void Mesh::UserWorkInLoop() {
 	  theta = pmb->pcoord->x1v(j);
 	  phi = pmb->pcoord->x1v(k);
 
-          den = prim(IDN,k,j,i);
-	  vr = prim(IM1,k,j,i);
-	  vtheta = prim(IM2,k,j,i);
-	  vphi = prim(IM3,k,j,i);
+          den = w(IDN,k,j,i);
+	  vr = w(IM1,k,j,i);
+	  vtheta = w(IM2,k,j,i);
+	  vphi = w(IM3,k,j,i);
 
           SphToCart(r, theta, phi, x, y, z);	  
           VelSphToCart(theta, phi, vr, vtheta, vphi,
@@ -336,7 +343,7 @@ void SphToCart(Real r, Real theta, Real phi, Real &x, Real &y, Real &z) {
 
 /**
 * Converts a spherical velocity vector to Cartesian coordinates. Note that 
-* this requires the position vector’s theta and phi coordinates.
+* this requires the position vector's theta and phi coordinates.
 */
 void VelSphToCart(Real theta, Real phi, Real vr, Real vtheta, Real vphi,
 	       	Real &vx, Real &vy, Real &vz) {
@@ -346,13 +353,12 @@ void VelSphToCart(Real theta, Real phi, Real vr, Real vtheta, Real vphi,
       {std::sin(theta)*std::cos(phi), std::sin(theta)*std::sin(phi), std::cos(theta)};
   std::vector<Real> thetaHat = 
       {std::cos(theta)*std::cos(phi), std::cos(theta)*std::sin(phi), -std::sin(theta)};
-  std::vector<Real> phiHat = {-std::sin(phi), std::cos(phi)};
+  std::vector<Real> phiHat = {-std::sin(phi), std::cos(phi), 0};
 
-  // Cartesian velocity vector
-  std::vector<Real> vCart = vr*rHat + vtheta*thetaHat + vphi*phiHat;
-  vx = vCart[0];
-  vy = vCart[1];
-  vz = vCart[2];
+  // Cartesian velocity vector (v = sum over v_i * ihat)
+  vx = vr*rHat[0] + vtheta*thetaHat[0] + vphi*phiHat[0];
+  vy = vr*rHat[1] + vtheta*thetaHat[1] + vphi*phiHat[1];
+  vz = vr*rHat[2] + vtheta*thetaHat[2] + vphi*phiHat[2];
 
   return;
 
@@ -365,10 +371,14 @@ void VelSphToCart(Real theta, Real phi, Real vr, Real vtheta, Real vphi,
 void GetZfromL(Real r, Real theta, Real phi, Real L[], Real &z_mp) {
 
   Real x, y, z;
+  Real Lmag;
 
   // normalize L (I suspect this affects the input array, but 
   // we only use a given L once per timestep, so it shouldn't matter)
-  L /= std::sqrt(L[0]*L[0] + L[1]*L[1] + L[2]*L[2]);
+  Lmag = std::sqrt(L[0]*L[0] + L[1]*L[1] + L[2]*L[2]);
+  L[0] = L[0]/Lmag;
+  L[1] = L[1]/Lmag;
+  L[2] = L[2]/Lmag;
 
   // get Cartesian coordinates
   SphToCart(r, theta, phi, x, y, z);
@@ -470,7 +480,7 @@ void DiskInnerX1(MeshBlock *pmb,Coordinates *pco, AthenaArray<Real> &prim, FaceF
   Real vel;
   Real rad_gh, z_gh; // cylindrical radius and height at ghost cell (in the disk's frame)
   Real r, r_gh; // spherical radii of last active and ghost cells, respectively
-  Real theta, phi; // angular coordinates
+  Real theta; // polar angle in spherical coordinates
   OrbitalVelocityFunc &vK = pmb->porb->OrbitalVelocity;
 
   // printf("ngh= %1d \n", ngh);
@@ -536,11 +546,12 @@ void DiskInnerX1(MeshBlock *pmb,Coordinates *pco, AthenaArray<Real> &prim, FaceF
 void DiskOuterX1(MeshBlock *pmb,Coordinates *pco, AthenaArray<Real> &prim, FaceField &b,
                  Real time, Real dt,
                  int il, int iu, int jl, int ju, int kl, int ku, int ngh) {
-  Real rad(0.0), phi(0.0), z(0.0);
-  Real rad_gh, z_gh; // cylindrical R and z (in disk frame)
+  Real rad(0.0), phi(0.0), z(0.0); // cyl. coords at active cell (in disk frame)
+  Real rad_gh, z_gh; // cylindrical R and z at ghost cell (in disk frame)
   Real r, r_gh; // spherical radii of last active and ghost cells, respectively
-  Real theta, phi; // angular coordinates 
+  Real theta; // polar angle in spherical coordinates 
   Real den, vel;
+  Real vK_gh; // Keplerian velocity in ghost cell
   OrbitalVelocityFunc &vK = pmb->porb->OrbitalVelocity;
   if (std::strcmp(COORDINATE_SYSTEM, "cylindrical") == 0) {
     for (int k=kl; k<=ku; ++k) {
