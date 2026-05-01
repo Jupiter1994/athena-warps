@@ -34,6 +34,9 @@
 #include "../orbital_advection/orbital_advection.hpp"
 #include "../parameter_input.hpp"
 
+// saves components of L_in to history file
+Real L_in_component(MeshBlock *pmb, int iout);
+
 namespace {
 void GetCylCoord(Coordinates *pco,Real &rad,Real &phi,Real &z,int i,int j,int k);
 Real DenProfileCyl(const Real rad, const Real phi, const Real z);
@@ -147,6 +150,12 @@ void Mesh::InitUserMeshData(ParameterInput *pin) {
   // enroll user-defined viscosity
   EnrollViscosityCoefficient(alpha_viscosity);
 
+  // save L_in to history file
+  AllocateUserHistoryOutput(3);
+  EnrollUserHistoryOutput(0, L_in_component, "Lx_in");
+  EnrollUserHistoryOutput(1, L_in_component, "Ly_in");
+  EnrollUserHistoryOutput(2, L_in_component, "Lz_in");
+  
   return;
 }
 
@@ -217,22 +226,22 @@ void Mesh::UserWorkInLoop() {
 
     int il = pmb->is;
     // ignore MeshBlocks (mbs) that don't include r_in
-    if (pmb->pcoord->x1v(il) > r_in) {
+    if (pmb->pcoord->x1f(il) > r_in) {
 	continue;
     }
     int iu = pmb->ie, jl = pmb->js, ju = pmb->je,
         kl = pmb->ks, ku = pmb->ke;
     for (int i=il; i<=iu; i++) {
-      r = pmb->pcoord->x1v(i);
-      // ignore mbs that aren't at r_in
+      r = pmb->pcoord->x1f(i);
+      // only look at cells whose leftmost/innermost r = r_in
       if (r != r_in) {
         continue;
       }
       // adds this mb's L_in to the mesh's L_in
       for (int j=jl; j<ju; j++) {
         for (int k=kl; k<ku; k++) {
-	  theta = pmb->pcoord->x1v(j);
-	  phi = pmb->pcoord->x1v(k);
+	  theta = pmb->pcoord->x1f(j);
+	  phi = pmb->pcoord->x1f(k);
 
           den = w(IDN,k,j,i);
 	  vr = w(IM1,k,j,i);
@@ -244,9 +253,9 @@ void Mesh::UserWorkInLoop() {
 	     vx, vy, vz);
    	  
 	  // L = m(r x v)
-	  mesh_L_in[0] += den * (y*vz - z*vy);
-	  mesh_L_in[1] += den * (z*vx - x*vz);
-	  mesh_L_in[2] += den * (x*vy - y*vx);
+	  mesh_L_in[0] += den*sin(theta) * (y*vz - z*vy);
+	  mesh_L_in[1] += den*sin(theta) * (z*vx - x*vz);
+	  mesh_L_in[2] += den*sin(theta) * (x*vy - y*vx);
 	  
 	}
       }   
@@ -322,6 +331,13 @@ void alpha_viscosity(HydroDiffusion *phdif, MeshBlock *pmb,
   return;
 }
 
+/*
+ * Saves components of L_in to history file; see Mesh::InitUserMeshData.
+ */
+Real L_in_component(MeshBlock *pmb, int iout) {
+  return L_in[iout];
+}
+
 // namespace for custom helper functions, eg,
 // coordinate transformations
 namespace {
@@ -373,18 +389,18 @@ void GetZfromL(Real r, Real theta, Real phi, Real L[], Real &z_mp) {
   Real x, y, z;
   Real Lmag;
 
-  // normalize L (I suspect this affects the input array, but 
-  // we only use a given L once per timestep, so it shouldn't matter)
+  // magnitude of L
   Lmag = std::sqrt(L[0]*L[0] + L[1]*L[1] + L[2]*L[2]);
-  L[0] = L[0]/Lmag;
-  L[1] = L[1]/Lmag;
-  L[2] = L[2]/Lmag;
 
   // get Cartesian coordinates
   SphToCart(r, theta, phi, x, y, z);
 
   // z_mp is the dot product of Lhat with the position vector
   z_mp = L[0]*x + L[1]*y + L[2]*z;
+  z_mp /= Lmag;
+
+  // debugging: for W_out=0, this is the correct z_mp 
+  z_mp = z;
 
   return;
 }
