@@ -34,17 +34,31 @@
 #include "../orbital_advection/orbital_advection.hpp"
 #include "../parameter_input.hpp"
 
+// saves components of L_in to history file
+Real L_in_component(MeshBlock *pmb, int iout);
+// saves debugging variables in history file
+Real Num_inner_cells(MeshBlock *pmb, int iout);
+
 namespace {
 void GetCylCoord(Coordinates *pco,Real &rad,Real &phi,Real &z,int i,int j,int k);
 Real DenProfileCyl(const Real rad, const Real phi, const Real z);
 Real PoverR(const Real rad, const Real phi, const Real z);
 Real VelProfileCyl(const Real rad, const Real phi, const Real z);
+// custom helper functions used in Mesh::UserWorkInLoop
+void SphToCart(Real r, Real theta, Real phi, Real &x, Real &y, Real &z);
+void VelSphToCart(Real theta, Real phi, Real vr, Real vtheta, Real vphi,
+	       	Real &vx, Real &vy, Real &vz);
 // problem parameters which are useful to make global to this file
 Real gm0, r0, rho0, dslope, p0_over_r0, pslope, gamma_gas;
 Real R_gap, Delta_gap, depth_gap; // gapped density profile parameters
 Real dfloor;
 Real Omega0;
 Real alpha_const; // alpha viscosity parameter
+Real r_in; // inner radius of disk
+Real W_out; // outer inclination of disk
+Real num_inner_cells; // counts the number of cells at r_in (used for debugging Lhat calculation)
+Real L_in[3] = {0.0, 0.0, 1.0}; // ang mom vector (Cartesian) at r_in
+Real L_out[3] = {0.0, 0.0, 1.0}; // ang mom vector (Cartesian) at r_out
 } // namespace
 
 // User-defined boundary conditions for disk simulations
@@ -108,6 +122,17 @@ void Mesh::InitUserMeshData(ParameterInput *pin) {
 
   Omega0 = pin->GetOrAddReal("orbital_advection","Omega0",0.0);
 
+  // variables for setting boundary conditions
+  r_in = pin->GetReal("problem", "r_in"); 
+  W_out = pin->GetOrAddReal("problem", "W_out", 0.0);
+  L_in[0] = -std::sin(W_out);
+  L_in[2] = std::cos(W_out); 
+  L_out[0] = -std::sin(W_out);
+  L_out[2] = std::cos(W_out);
+
+  // used for debugging Lhat calculation
+  num_inner_cells = 0;
+
   // enroll user-defined boundary condition
   if (mesh_bcs[BoundaryFace::inner_x1] == GetBoundaryFlag("user")) {
     EnrollUserBoundaryFunction(BoundaryFace::inner_x1, DiskInnerX1);
@@ -130,6 +155,13 @@ void Mesh::InitUserMeshData(ParameterInput *pin) {
 
   // enroll user-defined viscosity
   EnrollViscosityCoefficient(alpha_viscosity);
+
+  // save L_in and debugging variables to history file
+  AllocateUserHistoryOutput(4);
+  EnrollUserHistoryOutput(0, L_in_component, "Lx_in");
+  EnrollUserHistoryOutput(1, L_in_component, "Ly_in");
+  EnrollUserHistoryOutput(2, L_in_component, "Lz_in");
+  EnrollUserHistoryOutput(3, Num_inner_cells, "Ncells_in");
 
   return;
 }
@@ -177,6 +209,83 @@ void MeshBlock::ProblemGenerator(ParameterInput *pin) {
       }
     }
   }
+
+  return;
+}
+
+// at the end of each cycle, calculate this mesh/core's total L_in,
+// then calculate+store the global L_in
+void Mesh::UserWorkInLoop() {
+
+  // this mesh's contribution to the ang mom (L) vector at r_in
+  // (by "mesh", I mean the set of MeshBlocks on a particular
+  // process, NOT the whole sim domain)
+  // WARNING: L is in Cartesian coordinates.
+  Real mesh_L_in[3] = {0.0, 0.0, 0.0};
+  // variables that are updated for every MeshBlock (mb)
+  Real den;
+  Real r, theta, phi, vr, vtheta, vphi;
+  Real x, y, z, vx, vy, vz;
+  // debugging variables
+  Real mesh_Ncells_in = 0; // number of cells at r_in (this mesh)
+
+  // this loop calculates this mesh's contribution to L(r_in)
+  for (int b=0; b<nblocal; ++b) {
+    MeshBlock *pmb = my_blocks(b);
+    // primitive variables
+    AthenaArray<Real> &w = pmb->phydro->w;
+
+    int il = pmb->is;
+    // ignore MeshBlocks (mbs) that don't include r_in
+    if (pmb->pcoord->x1f(il) > r_in) {
+	continue;
+    }
+    int iu = pmb->ie, jl = pmb->js, ju = pmb->je,
+        kl = pmb->ks, ku = pmb->ke;
+    for (int i=il; i<=iu; i++) {
+      r = pmb->pcoord->x1f(i);
+      // only look at cells whose leftmost/innermost r = r_in
+      if (r != r_in) {
+        continue;
+      }
+      // debugging
+      mesh_Ncells_in += 1;
+
+      // adds this mb's L_in to the mesh's L_in
+      for (int j=jl; j<ju; j++) {
+        for (int k=kl; k<ku; k++) {
+	  theta = pmb->pcoord->x1f(j);
+	  phi = pmb->pcoord->x1f(k);
+
+          den = w(IDN,k,j,i);
+	  vr = w(IM1,k,j,i);
+	  vtheta = w(IM2,k,j,i);
+	  vphi = w(IM3,k,j,i);
+
+          SphToCart(r, theta, phi, x, y, z);
+          VelSphToCart(theta, phi, vr, vtheta, vphi,
+	     vx, vy, vz);
+
+	  // L = m(r x v)
+	  mesh_L_in[0] += den*sin(theta) * (y*vz - z*vy);
+	  mesh_L_in[1] += den*sin(theta) * (z*vx - x*vz);
+	  mesh_L_in[2] += den*sin(theta) * (x*vy - y*vx);
+
+	}
+      }
+    } // end of i,j,k loop within this mb
+
+  } // end of loop within mesh
+
+  // send L_in to all cores/processes
+  #ifdef MPI_PARALLEL
+      MPI_Allreduce(&mesh_L_in, &L_in, 3, MPI_ATHENA_REAL, MPI_SUM, MPI_COMM_WORLD);
+      MPI_Allreduce(&mesh_Ncells_in, &num_inner_cells, 1, MPI_ATHENA_REAL, MPI_SUM, MPI_COMM_WORLD);
+  #else // if only using one core
+      std::copy(mesh_L_in, mesh_L_in+3, L_in);
+      // L_in = mesh_L_in; // sloppy imo
+      num_inner_cells = mesh_Ncells_in;
+  #endif
 
   return;
 }
@@ -233,10 +342,68 @@ void alpha_viscosity(HydroDiffusion *phdif, MeshBlock *pmb,
 	    }
 	  }
    }
- //  printf("alpha_viscosity called");
 
   return;
 }
+
+/*
+ * Saves components of L_in to history file; see Mesh::InitUserMeshData.
+ */
+Real L_in_component(MeshBlock *pmb, int iout) {
+  return L_in[iout];
+}
+
+/*
+ * Saves the number of cells at r_in to history file. 
+ */
+Real Num_inner_cells(MeshBlock *pmb, int iout) {
+  return num_inner_cells;
+}
+
+// namespace for custom helper functions, eg,
+// coordinate transformations
+namespace {
+
+/*
+ * Converts spherical coordinates to Cartesian.
+ *
+ * r,theta,phi: spherical coordinates
+ * x,y,z: references to the (Cartesian) coordinates you're setting
+ */
+void SphToCart(Real r, Real theta, Real phi, Real &x, Real &y, Real &z) { 
+  x = r * std::sin(theta) * std::cos(phi);
+  y = r * std::sin(theta) * std::sin(phi);
+  z = r * std::cos(theta);
+  
+  return;
+
+}
+
+/**
+* Converts a spherical velocity vector to Cartesian coordinates. Note that 
+* this requires the position vector's theta and phi coordinates.
+*/
+void VelSphToCart(Real theta, Real phi, Real vr, Real vtheta, Real vphi,
+	       	Real &vx, Real &vy, Real &vz) {
+
+  // spherical unit vectors  
+  std::vector<Real> rHat = 
+      {std::sin(theta)*std::cos(phi), std::sin(theta)*std::sin(phi), std::cos(theta)};
+  std::vector<Real> thetaHat = 
+      {std::cos(theta)*std::cos(phi), std::cos(theta)*std::sin(phi), -std::sin(theta)};
+  std::vector<Real> phiHat = {-std::sin(phi), std::cos(phi), 0};
+
+  // Cartesian velocity vector (v = sum over v_i * ihat)
+  vx = vr*rHat[0] + vtheta*thetaHat[0] + vphi*phiHat[0];
+  vy = vr*rHat[1] + vtheta*thetaHat[1] + vphi*phiHat[1];
+  vz = vr*rHat[2] + vtheta*thetaHat[2] + vphi*phiHat[2];
+
+  return;
+
+}
+
+} // namespace for custom helper functions
+
 
 namespace {
 //----------------------------------------------------------------------------------------
