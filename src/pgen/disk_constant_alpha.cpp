@@ -248,14 +248,15 @@ void Mesh::UserWorkInLoop() {
       if (r != r_in) {
         continue;
       }
-      // debugging
-      mesh_Ncells_in += 1;
 
       // adds this mb's L_in to the mesh's L_in
-      for (int j=jl; j<ju; j++) {
-        for (int k=kl; k<ku; k++) {
-	  theta = pmb->pcoord->x1f(j);
-	  phi = pmb->pcoord->x1f(k);
+      for (int j=jl; j<=ju; j++) {
+        for (int k=kl; k<=ku; k++) {
+	  // debugging
+          mesh_Ncells_in += 1;
+	  
+	  theta = pmb->pcoord->x1v(j);
+	  phi = pmb->pcoord->x1v(k);
 
           den = w(IDN,k,j,i);
 	  vr = w(IM1,k,j,i);
@@ -514,10 +515,10 @@ void DiskInnerX1(MeshBlock *pmb,Coordinates *pco, AthenaArray<Real> &prim, FaceF
 	  r = pco->x1v(il);
 	  r_gh = pco->x1v(il-i);
 
-          // prim(IDN,k,j,il-i) = prim(IDN,k,j,il) *
-	  //	DenProfileCyl(rad_gh,phi,z_gh)/DenProfileCyl(rad,phi,z);
+          prim(IDN,k,j,il-i) = prim(IDN,k,j,il) *
+	  	DenProfileCyl(rad_gh,phi,z_gh)/DenProfileCyl(rad,phi,z);
 	  // below line doesn't care about midplane's location
-          prim(IDN,k,j,il-i) = prim(IDN,k,j,il) * std::pow(rad_gh/rad,-3);
+          // prim(IDN,k,j,il-i) = prim(IDN,k,j,il) * std::pow(rad_gh/rad,-3);
 	  // vel = VelProfileCyl(rad,phi,z);
           if (pmb->porb->orbital_advection_defined)
             vel -= vK(pmb->porb, pco->x1v(il-i), pco->x2v(j), pco->x3v(k));
