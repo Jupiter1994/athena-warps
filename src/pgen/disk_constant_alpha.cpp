@@ -236,10 +236,17 @@ void Mesh::UserWorkInLoop() {
     AthenaArray<Real> &w = pmb->phydro->w;
 
     int il = pmb->is;
+
+    // debugging
+    printf("b= %1d \n", b);
+    printf("mb_in= %.2f \n", pmb->pcoord->x1f(il));
+    printf("mesh_Ncells_in= %d \n", mesh_Ncells_in);
+
     // ignore MeshBlocks (mbs) that don't include r_in
     if (pmb->pcoord->x1f(il) > r_in) {
 	continue;
     }
+
     int iu = pmb->ie, jl = pmb->js, ju = pmb->je,
         kl = pmb->ks, ku = pmb->ke;
     for (int i=il; i<=iu; i++) {
@@ -248,6 +255,8 @@ void Mesh::UserWorkInLoop() {
       if (r != r_in) {
         continue;
       }
+      // debugging
+      printf("i= %1d \n", i);
 
       // adds this mb's L_in to the mesh's L_in
       for (int j=jl; j<=ju; j++) {
