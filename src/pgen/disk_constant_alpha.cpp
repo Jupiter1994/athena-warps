@@ -238,9 +238,9 @@ void Mesh::UserWorkInLoop() {
     int il = pmb->is;
 
     // debugging
-    printf("b= %1d \n", b);
+    printf("b= %d \n", b);
     printf("mb_in= %.2f \n", pmb->pcoord->x1f(il));
-    printf("mesh_Ncells_in= %d \n", mesh_Ncells_in);
+    printf("mesh_Ncells_in= %.1f \n", mesh_Ncells_in);
 
     // ignore MeshBlocks (mbs) that don't include r_in
     if (pmb->pcoord->x1f(il) > r_in) {
@@ -256,7 +256,8 @@ void Mesh::UserWorkInLoop() {
         continue;
       }
       // debugging
-      printf("i= %1d \n", i);
+      printf("i= %d \n", i);
+      printf("r=%.2f \n", r);
 
       // adds this mb's L_in to the mesh's L_in
       for (int j=jl; j<=ju; j++) {
