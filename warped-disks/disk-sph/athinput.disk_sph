@@ -4,12 +4,12 @@ reference =
 configure = --prob=disk --coord=spherical_polar
 
 <job>
-problem_id  = /scratch/phn2956/disk-sph11/disk      # problem ID: basename of output filenames
+problem_id  = /scratch/phn2956/disk-sph12/disk      # problem ID: basename of output filenames
 
 <output1> 
 file_type   = hdf5      # default: vtk output
 variable    = prim      # prim or cons
-dt          = 31.4      #62.8      # time increment between outputs
+dt          = 3.14      #62.8      # time increment between outputs
 ghost_zones = 1         # default = false 
 
 <output2>
@@ -23,7 +23,7 @@ dt          = 314      # time increment between outputs
 <time>
 cfl_number  = 0.3       # The Courant, Friedrichs, & Lewy (CFL) Number
 nlim        = -1        # cycle limit
-tlim        = 3140  # 3140.      # time limit; 6280 in Jiaru's sim
+tlim        = .314  # 3140.      # time limit; 6280 in Jiaru's sim
 integrator  = rk2 # vl2       # time integration algorithm
 xorder      = 2         # order of spatial reconstruction
 ncycle_out  = 1         # interval for stdout summary info
@@ -43,7 +43,7 @@ x2max       = 1.8208    # 1.8958    # maximum value of X2
 ix2_bc      = reflecting      # Inner-X2 boundary condition flag
 ox2_bc      = reflecting      # Outer-X2 boundary condition flag
 
-nx3         = 20 # 256            # Number of zones in X3-direction
+nx3         = 24 # 256            # Number of zones in X3-direction
 x3min       = 0.0            # minimum value of X3
 x3max       = 6.2831853071795862  # maximum value of X3
 ix3_bc      = periodic       # Inner-X3 boundary condition flag
@@ -54,7 +54,7 @@ ox3_bc      = periodic       # Outer-X3 boundary condition flag
 <meshblock>
 nx1        = 40         # Number of zones per MeshBlock in X1-direction
 nx2        = 50         # Number of zones per MeshBlock in X2-direction
-nx3        = 10         # Number of zones per MeshBlock in X3-direction
+nx3        = 8         # Number of zones per MeshBlock in X3-direction
 
 <hydro>
 gamma           = 1.66666667 # gamma = C_p/C_v

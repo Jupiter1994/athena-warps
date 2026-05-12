@@ -235,56 +235,53 @@ void Mesh::UserWorkInLoop() {
     // primitive variables
     AthenaArray<Real> &w = pmb->phydro->w;
 
-    int il = pmb->is;
+    // index of r_in in r direction
+    int i = pmb->is;
 
     // debugging
     printf("b= %d \n", b);
-    printf("mb_in= %.2f \n", pmb->pcoord->x1f(il));
-    printf("mesh_Ncells_in= %.1f \n", mesh_Ncells_in);
+    //printf("mb_in= %.2f \n", pmb->pcoord->x1f(i));
 
     // ignore MeshBlocks (mbs) that don't include r_in
-    if (pmb->pcoord->x1f(il) > r_in) {
+    if (pmb->loc.lx1 != 0) {
 	continue;
     }
 
-    int iu = pmb->ie, jl = pmb->js, ju = pmb->je,
+    int jl = pmb->js, ju = pmb->je,
         kl = pmb->ks, ku = pmb->ke;
-    for (int i=il; i<=iu; i++) {
-      r = pmb->pcoord->x1f(i);
-      // only look at cells whose leftmost/innermost r = r_in
-      if (r != r_in) {
-        continue;
-      }
-      // debugging
-      printf("i= %d \n", i);
-      printf("r=%.2f \n", r);
+    
+    r = pmb->pcoord->x1f(i);  
+    // debugging
+    //printf("i= %d \n", i);
+    //printf("r=%.2f \n", r);
 
-      // adds this mb's L_in to the mesh's L_in
-      for (int j=jl; j<=ju; j++) {
-        for (int k=kl; k<=ku; k++) {
-	  // debugging
-          mesh_Ncells_in += 1;
+    // adds this mb's L_in to the mesh's L_in
+    for (int j=jl; j<=ju; j++) {
+      for (int k=kl; k<=ku; k++) {
+        // debugging
+        mesh_Ncells_in += 1;
 	  
-	  theta = pmb->pcoord->x1v(j);
-	  phi = pmb->pcoord->x1v(k);
+	theta = pmb->pcoord->x1v(j);
+	phi = pmb->pcoord->x1v(k);
 
-          den = w(IDN,k,j,i);
-	  vr = w(IM1,k,j,i);
-	  vtheta = w(IM2,k,j,i);
-	  vphi = w(IM3,k,j,i);
+        den = w(IDN,k,j,i);
+	vr = w(IM1,k,j,i);
+	vtheta = w(IM2,k,j,i);
+	vphi = w(IM3,k,j,i);
 
-          SphToCart(r, theta, phi, x, y, z);
-          VelSphToCart(theta, phi, vr, vtheta, vphi,
+        SphToCart(r, theta, phi, x, y, z);
+        VelSphToCart(theta, phi, vr, vtheta, vphi,
 	     vx, vy, vz);
 
-	  // L = m(r x v)
-	  mesh_L_in[0] += den*sin(theta) * (y*vz - z*vy);
-	  mesh_L_in[1] += den*sin(theta) * (z*vx - x*vz);
-	  mesh_L_in[2] += den*sin(theta) * (x*vy - y*vx);
+	// L = m(r x v)
+	mesh_L_in[0] += den*sin(theta) * (y*vz - z*vy);
+	mesh_L_in[1] += den*sin(theta) * (z*vx - x*vz);
+	mesh_L_in[2] += den*sin(theta) * (x*vy - y*vx);
 
-	}
       }
-    } // end of i,j,k loop within this mb
+    } // end of j,k loop within this mb
+
+    printf("mesh_Ncells_in= %.1f \n", mesh_Ncells_in);
 
   } // end of loop within mesh
 
@@ -292,10 +289,12 @@ void Mesh::UserWorkInLoop() {
   #ifdef MPI_PARALLEL
       MPI_Allreduce(&mesh_L_in, &L_in, 3, MPI_ATHENA_REAL, MPI_SUM, MPI_COMM_WORLD);
       MPI_Allreduce(&mesh_Ncells_in, &num_inner_cells, 1, MPI_ATHENA_REAL, MPI_SUM, MPI_COMM_WORLD);
+      printf("parallelized, mesh_Ncells_in= %.1f \n", mesh_Ncells_in);
   #else // if only using one core
       std::copy(mesh_L_in, mesh_L_in+3, L_in);
       // L_in = mesh_L_in; // sloppy imo
       num_inner_cells = mesh_Ncells_in;
+      printf("1 core, num_inner_cells= %.1f \n", mesh_Ncells_in);
   #endif
 
   return;
