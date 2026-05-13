@@ -225,6 +225,8 @@ void Mesh::UserWorkInLoop() {
   // variables that are updated for every MeshBlock (mb)
   Real den;
   Real r, theta, phi, vr, vtheta, vphi;
+  Real dr, dtheta, dphi; // grid spacing
+  Real dV; // volume element
   Real x, y, z, vx, vy, vz;
   // debugging variables
   Real mesh_Ncells_in = 0; // number of cells at r_in (this mesh)
@@ -233,13 +235,15 @@ void Mesh::UserWorkInLoop() {
   for (int b=0; b<nblocal; ++b) {
     MeshBlock *pmb = my_blocks(b);
     // primitive variables
-    AthenaArray<Real> &w = pmb->phydro->w;
+    //AthenaArray<Real> &w = pmb->phydro->w;
+    // conserved variables
+    AthenaArray<Real> &u = pmb->phydro->u;
 
     // index of r_in in r direction
     int i = pmb->is;
 
     // debugging
-    printf("b= %d \n", b);
+    // printf("b= %d \n", b);
     //printf("mb_in= %.2f \n", pmb->pcoord->x1f(i));
 
     // ignore MeshBlocks (mbs) that don't include r_in
@@ -250,7 +254,13 @@ void Mesh::UserWorkInLoop() {
     int jl = pmb->js, ju = pmb->je,
         kl = pmb->ks, ku = pmb->ke;
     
-    r = pmb->pcoord->x1f(i);  
+    // r of the volume-weighted center
+    r = pmb->pcoord->x1v(i);  
+    // grid spacing (assuming uniform spacing)
+    dr = pmb->pcoord->x1v(i+1) - r;
+    dtheta = pmb->pcoord->x2v(jl+1) - pmb->pcoord->x2v(jl); 
+    dphi = pmb->pcoord->x3v(kl+1) - pmb->pcoord->x3v(kl);  
+
     // debugging
     //printf("i= %d \n", i);
     //printf("r=%.2f \n", r);
@@ -264,32 +274,41 @@ void Mesh::UserWorkInLoop() {
 	theta = pmb->pcoord->x1v(j);
 	phi = pmb->pcoord->x1v(k);
 
-        den = w(IDN,k,j,i);
-	vr = w(IM1,k,j,i);
-	vtheta = w(IM2,k,j,i);
-	vphi = w(IM3,k,j,i);
+        den = u(IDN,k,j,i);
+	vr = u(IM1,k,j,i) / den;
+	vtheta = u(IM2,k,j,i) / den;
+	vphi = u(IM3,k,j,i) / den;
 
         SphToCart(r, theta, phi, x, y, z);
         VelSphToCart(theta, phi, vr, vtheta, vphi,
 	     vx, vy, vz);
 
-	// L = m(r x v)
-	mesh_L_in[0] += den*sin(theta) * (y*vz - z*vy);
-	mesh_L_in[1] += den*sin(theta) * (z*vx - x*vz);
-	mesh_L_in[2] += den*sin(theta) * (x*vy - y*vx);
+	// dL = dm(r x v)
+	dV = r*r * sin(theta) * dr * dtheta * dphi;
+	mesh_L_in[0] += den*dV * (y*vz - z*vy);
+	mesh_L_in[1] += den*dV * (z*vx - x*vz);
+	mesh_L_in[2] += den*dV * (x*vy - y*vx);
 
       }
     } // end of j,k loop within this mb
 
-    printf("mesh_Ncells_in= %.1f \n", mesh_Ncells_in);
+    // debugging
+    // printf("mesh_Ncells_in= %.1f \n", mesh_Ncells_in);
 
   } // end of loop within mesh
 
   // send L_in to all cores/processes
   #ifdef MPI_PARALLEL
-      MPI_Allreduce(&mesh_L_in, &L_in, 3, MPI_ATHENA_REAL, MPI_SUM, MPI_COMM_WORLD);
-      MPI_Allreduce(&mesh_Ncells_in, &num_inner_cells, 1, MPI_ATHENA_REAL, MPI_SUM, MPI_COMM_WORLD);
-      printf("parallelized, mesh_Ncells_in= %.1f \n", mesh_Ncells_in);
+      //MPI_Allreduce(&mesh_L_in, &L_in, 3, MPI_ATHENA_REAL, MPI_SUM, MPI_COMM_WORLD);
+      //MPI_Allreduce(&mesh_Ncells_in, &num_inner_cells, 1, MPI_ATHENA_REAL, MPI_SUM, MPI_COMM_WORLD);
+      std::copy(mesh_L_in, mesh_L_in+3, L_in);
+      num_inner_cells = mesh_Ncells_in;
+
+      printf("L_x= %.3f \n", L_in[0]);
+      printf("L_y= %.3f \n", L_in[1]);
+      printf("L_z= %.3f \n", L_in[2]);
+      //printf("parallelized, mesh_Ncells_in= %.1f \n", mesh_Ncells_in);
+      //printf("num_inner_cells= %.1f \n", num_inner_cells);
   #else // if only using one core
       std::copy(mesh_L_in, mesh_L_in+3, L_in);
       // L_in = mesh_L_in; // sloppy imo
