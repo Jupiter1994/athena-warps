@@ -57,6 +57,7 @@ Real Omega0;
 Real alpha_const; // alpha viscosity parameter
 Real r_in; // inner radius of disk
 Real W_out; // outer inclination of disk
+Real N_mbs; // (global) number of MeshBlocks in the sim
 Real num_inner_cells; // counts the number of cells at r_in (used for debugging Lhat calculation)
 Real M_in; // mass contained in shell at r_in
 Real L_in[3] = {0.0, 0.0, 1.0}; // ang mom vector (Cartesian) at r_in
@@ -135,6 +136,7 @@ void Mesh::InitUserMeshData(ParameterInput *pin) {
   // used for debugging Lhat calculation
   num_inner_cells = 0;
   M_in = 0;
+  N_mbs = 1;
 
   // enroll user-defined boundary condition
   if (mesh_bcs[BoundaryFace::inner_x1] == GetBoundaryFlag("user")) {
@@ -235,7 +237,8 @@ void Mesh::UserWorkInLoop() {
   // debugging variables
   Real mesh_Ncells_in = 0; // number of cells at r_in (this mesh)
   Real mesh_M_in = 0; // mass at r_in (this mesh)
-
+  Real mesh_N_mbs = nblocal; // number of MeshBlocks (this mesh)
+  
   // this loop calculates this mesh's contribution to L(r_in)
   for (int b=0; b<nblocal; ++b) {
     MeshBlock *pmb = my_blocks(b);
@@ -288,6 +291,10 @@ void Mesh::UserWorkInLoop() {
         VelSphToCart(theta, phi, vr, vtheta, vphi,
 	     vx, vy, vz);
 
+	// debugging
+	//printf("x,y,z=%.2f, %.2f, %.2f, \n", x,y,z);
+        //printf("vx,vy,vz=%.2f, %.2f, %.2f, \n", vx,vy,vz);
+
 	// dL = dm(r x v)
 	dV = r*r * std::sin(theta) * dr * dtheta * dphi;
 	mesh_L_in[0] += den*dV * (y*vz - z*vy);
@@ -295,13 +302,13 @@ void Mesh::UserWorkInLoop() {
 	mesh_L_in[2] += den*dV * (x*vy - y*vx);
 
 	// debugging
-	mesh_M_in += den; // den*dV;
-	printf("j=%d \n", j);
-	printf("theta=%.2f \n", theta);
-	printf("k=%.d \n", k);
-	printf("phi=%.2f \n", phi);
-	printf("dV=%.8f \n", dV);
-	printf("den=%.3f \n", den);
+	mesh_M_in += den*dV; // den*dV;
+	//printf("j=%d \n", j);
+	//printf("theta=%.2f \n", theta);
+	//printf("k=%.d \n", k);
+	//printf("phi=%.2f \n", phi);
+	//printf("dV=%.8f \n", dV);
+	//printf("den=%.3f \n", den);
       }
     } // end of j,k loop within this mb
 
@@ -312,16 +319,19 @@ void Mesh::UserWorkInLoop() {
 
   // send L_in to all cores/processes
   #ifdef MPI_PARALLEL
-      //MPI_Allreduce(&mesh_L_in, &L_in, 3, MPI_ATHENA_REAL, MPI_SUM, MPI_COMM_WORLD);
-      //MPI_Allreduce(&mesh_Ncells_in, &num_inner_cells, 1, MPI_ATHENA_REAL, MPI_SUM, MPI_COMM_WORLD);
-      std::copy(mesh_L_in, mesh_L_in+3, L_in);
-      num_inner_cells = mesh_Ncells_in;
-      M_in = mesh_M_in;
+      MPI_Allreduce(&mesh_L_in, &L_in, 3, MPI_ATHENA_REAL, MPI_SUM, MPI_COMM_WORLD);
+      MPI_Allreduce(&mesh_Ncells_in, &num_inner_cells, 1, MPI_ATHENA_REAL, MPI_SUM, MPI_COMM_WORLD);
+      MPI_Allreduce(&mesh_M_in, &M_in, 1, MPI_ATHENA_REAL, MPI_SUM, MPI_COMM_WORLD);
+      MPI_Allreduce(&mesh_N_mbs, &N_mbs, 1, MPI_ATHENA_REAL, MPI_SUM, MPI_COMM_WORLD);
+      //std::copy(mesh_L_in, mesh_L_in+3, L_in);
+      //num_inner_cells = mesh_Ncells_in;
+      //M_in = mesh_M_in;
 
       printf("L_x= %.4f \n", L_in[0]);
       printf("L_y= %.4f \n", L_in[1]);
       printf("L_z= %.4f \n", L_in[2]);
       printf("M_in= %.3f \n", M_in);
+      printf("N_mbs=%d \n", N_mbs);
       //printf("parallelized, mesh_Ncells_in= %.1f \n", mesh_Ncells_in);
       //printf("num_inner_cells= %.1f \n", num_inner_cells);
   #else // if only using one core
@@ -394,21 +404,21 @@ void alpha_viscosity(HydroDiffusion *phdif, MeshBlock *pmb,
  * Saves components of L_in to history file; see Mesh::InitUserMeshData.
  */
 Real L_in_component(MeshBlock *pmb, int iout) {
-  return L_in[iout];
+  return L_in[iout] / N_mbs;
 }
 
 /*
  * Saves the number of cells at r_in to history file. 
  */
 Real Num_inner_cells(MeshBlock *pmb, int iout) {
-  return num_inner_cells;
+  return num_inner_cells / N_mbs;
 }
 
 /*
  * Returns the mass contained within the shell at r_in.
  */
 Real get_M_in(MeshBlock *pmb, int iout) {
-  return M_in;
+  return M_in / N_mbs;
 }
 
 // namespace for custom helper functions, eg,
