@@ -38,6 +38,7 @@
 Real L_in_component(MeshBlock *pmb, int iout);
 // saves debugging variables in history file
 Real Num_inner_cells(MeshBlock *pmb, int iout);
+Real get_M_in(MeshBlock *pmb, int iout); 
 
 namespace {
 void GetCylCoord(Coordinates *pco,Real &rad,Real &phi,Real &z,int i,int j,int k);
@@ -57,6 +58,7 @@ Real alpha_const; // alpha viscosity parameter
 Real r_in; // inner radius of disk
 Real W_out; // outer inclination of disk
 Real num_inner_cells; // counts the number of cells at r_in (used for debugging Lhat calculation)
+Real M_in; // mass contained in shell at r_in
 Real L_in[3] = {0.0, 0.0, 1.0}; // ang mom vector (Cartesian) at r_in
 Real L_out[3] = {0.0, 0.0, 1.0}; // ang mom vector (Cartesian) at r_out
 } // namespace
@@ -132,6 +134,7 @@ void Mesh::InitUserMeshData(ParameterInput *pin) {
 
   // used for debugging Lhat calculation
   num_inner_cells = 0;
+  M_in = 0;
 
   // enroll user-defined boundary condition
   if (mesh_bcs[BoundaryFace::inner_x1] == GetBoundaryFlag("user")) {
@@ -157,11 +160,12 @@ void Mesh::InitUserMeshData(ParameterInput *pin) {
   EnrollViscosityCoefficient(alpha_viscosity);
 
   // save L_in and debugging variables to history file
-  AllocateUserHistoryOutput(4);
+  AllocateUserHistoryOutput(5);
   EnrollUserHistoryOutput(0, L_in_component, "Lx_in");
   EnrollUserHistoryOutput(1, L_in_component, "Ly_in");
   EnrollUserHistoryOutput(2, L_in_component, "Lz_in");
   EnrollUserHistoryOutput(3, Num_inner_cells, "Ncells_in");
+  EnrollUserHistoryOutput(4, get_M_in, "M_in");
 
   return;
 }
@@ -230,6 +234,7 @@ void Mesh::UserWorkInLoop() {
   Real x, y, z, vx, vy, vz;
   // debugging variables
   Real mesh_Ncells_in = 0; // number of cells at r_in (this mesh)
+  Real mesh_M_in = 0; // mass at r_in (this mesh)
 
   // this loop calculates this mesh's contribution to L(r_in)
   for (int b=0; b<nblocal; ++b) {
@@ -262,8 +267,8 @@ void Mesh::UserWorkInLoop() {
     dphi = pmb->pcoord->x3v(kl+1) - pmb->pcoord->x3v(kl);  
 
     // debugging
-    //printf("i= %d \n", i);
-    //printf("r=%.2f \n", r);
+    printf("i= %d \n", i);
+    printf("r=%.2f \n", r);
 
     // adds this mb's L_in to the mesh's L_in
     for (int j=jl; j<=ju; j++) {
@@ -271,8 +276,8 @@ void Mesh::UserWorkInLoop() {
         // debugging
         mesh_Ncells_in += 1;
 	  
-	theta = pmb->pcoord->x1v(j);
-	phi = pmb->pcoord->x1v(k);
+	theta = pmb->pcoord->x2v(j);
+	phi = pmb->pcoord->x3v(k);
 
         den = u(IDN,k,j,i);
 	vr = u(IM1,k,j,i) / den;
@@ -284,11 +289,19 @@ void Mesh::UserWorkInLoop() {
 	     vx, vy, vz);
 
 	// dL = dm(r x v)
-	dV = r*r * sin(theta) * dr * dtheta * dphi;
+	dV = r*r * std::sin(theta) * dr * dtheta * dphi;
 	mesh_L_in[0] += den*dV * (y*vz - z*vy);
 	mesh_L_in[1] += den*dV * (z*vx - x*vz);
 	mesh_L_in[2] += den*dV * (x*vy - y*vx);
 
+	// debugging
+	mesh_M_in += den; // den*dV;
+	printf("j=%d \n", j);
+	printf("theta=%.2f \n", theta);
+	printf("k=%.d \n", k);
+	printf("phi=%.2f \n", phi);
+	printf("dV=%.8f \n", dV);
+	printf("den=%.3f \n", den);
       }
     } // end of j,k loop within this mb
 
@@ -303,10 +316,12 @@ void Mesh::UserWorkInLoop() {
       //MPI_Allreduce(&mesh_Ncells_in, &num_inner_cells, 1, MPI_ATHENA_REAL, MPI_SUM, MPI_COMM_WORLD);
       std::copy(mesh_L_in, mesh_L_in+3, L_in);
       num_inner_cells = mesh_Ncells_in;
+      M_in = mesh_M_in;
 
-      printf("L_x= %.3f \n", L_in[0]);
-      printf("L_y= %.3f \n", L_in[1]);
-      printf("L_z= %.3f \n", L_in[2]);
+      printf("L_x= %.4f \n", L_in[0]);
+      printf("L_y= %.4f \n", L_in[1]);
+      printf("L_z= %.4f \n", L_in[2]);
+      printf("M_in= %.3f \n", M_in);
       //printf("parallelized, mesh_Ncells_in= %.1f \n", mesh_Ncells_in);
       //printf("num_inner_cells= %.1f \n", num_inner_cells);
   #else // if only using one core
@@ -387,6 +402,13 @@ Real L_in_component(MeshBlock *pmb, int iout) {
  */
 Real Num_inner_cells(MeshBlock *pmb, int iout) {
   return num_inner_cells;
+}
+
+/*
+ * Returns the mass contained within the shell at r_in.
+ */
+Real get_M_in(MeshBlock *pmb, int iout) {
+  return M_in;
 }
 
 // namespace for custom helper functions, eg,
