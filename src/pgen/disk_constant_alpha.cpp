@@ -40,6 +40,7 @@ Real L_in_component(MeshBlock *pmb, int iout);
 namespace {
 void GetCylCoord(Coordinates *pco,Real &rad,Real &phi,Real &z,int i,int j,int k);
 Real DenProfileCyl(const Real rad, const Real phi, const Real z);
+Real gapProfile(const Real rad, const Real phi, const Real z); // density gap profile
 Real PoverR(const Real rad, const Real phi, const Real z);
 Real VelProfileCyl(const Real rad, const Real phi, const Real z);
 // custom helper functions used in Mesh::UserWorkInLoop
@@ -168,7 +169,8 @@ void MeshBlock::ProblemGenerator(ParameterInput *pin) {
   Real rad(0.0), phi(0.0), z(0.0);
   Real den, vel;
   Real x1, x2, x3;
-
+  Real gap_R; // density gap profile
+  
   OrbitalVelocityFunc &vK = porb->OrbitalVelocity;
   //  Initialize density and momenta
   for (int k=ks; k<=ke; ++k) {
@@ -179,7 +181,8 @@ void MeshBlock::ProblemGenerator(ParameterInput *pin) {
         x1 = pcoord->x1v(i);
         GetCylCoord(pcoord,rad,phi,z,i,j,k); // convert to cylindrical coordinates
         // compute initial conditions in cylindrical coordinates
-        den = DenProfileCyl(rad,phi,z);
+        gap_R = gapProfile(rad,phi,z);
+	den = DenProfileCyl(rad,phi,z) / gap_R; // apply gap profile
         vel = VelProfileCyl(rad,phi,z);
         if (porb->orbital_advection_defined)
           vel -= vK(porb, x1, x2, x3);
@@ -452,13 +455,13 @@ Real gapProfile(const Real rad, const Real phi, const Real z) {
 Real DenProfileCyl(const Real rad, const Real phi, const Real z) {
   Real den;
   Real p_over_r = p0_over_r0;
-  Real gap_R = gapProfile(rad,phi,z);
+  //Real gap_R = gapProfile(rad,phi,z);
 
   if (NON_BAROTROPIC_EOS) p_over_r = PoverR(rad, phi, z);
   
   Real denmid = rho0*std::pow(rad/r0,dslope);
   Real dentem = denmid*std::exp(gm0/p_over_r*(1./std::sqrt(SQR(rad)+SQR(z))-1./rad));
-  den = dentem * (1.0/gap_R);
+  den = dentem;// * (1.0/gap_R);
 
   return std::max(den,dfloor);
 }
@@ -524,9 +527,9 @@ void DiskInnerX1(MeshBlock *pmb,Coordinates *pco, AthenaArray<Real> &prim, FaceF
     for (int k=kl; k<=ku; ++k) {
       for (int j=jl; j<=ju; ++j) {
 	r = pco->x1v(il);
-	theta = pco->x1v(j);
-	phi = pco->x1v(k);
-        GetZfromL(r, theta, phi, L_in, z);
+	theta = pco->x2v(j);
+	phi = pco->x3v(k);
+	GetZfromL(r, theta, phi, L_in, z);
 	rad = std::sqrt(r*r - z*z); 
 	for (int i=1; i<=ngh; ++i) {
 	  r_gh = pco->x1v(il-i);
@@ -597,8 +600,8 @@ void DiskOuterX1(MeshBlock *pmb,Coordinates *pco, AthenaArray<Real> &prim, FaceF
   } else if (std::strcmp(COORDINATE_SYSTEM, "spherical_polar") == 0) {
     for (int k=kl; k<=ku; ++k) {
       for (int j=jl; j<=ju; ++j) {
-        theta = pco->x1v(j);
-        phi = pco->x1v(k);
+        theta = pco->x2v(j);
+        phi = pco->x3v(k);
 	for (int i=1; i<=ngh; ++i) {
           //GetCylCoord(pco,rad_gh,phi,z_gh,iu+i,j,k);
           //r = pco->x1v(iu); 
