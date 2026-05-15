@@ -36,6 +36,9 @@
 
 // saves components of L_in to history file
 Real L_in_component(MeshBlock *pmb, int iout);
+// saves debugging variables in history file
+Real Num_inner_cells(MeshBlock *pmb, int iout);
+Real get_M_in(MeshBlock *pmb, int iout); 
 
 namespace {
 void GetCylCoord(Coordinates *pco,Real &rad,Real &phi,Real &z,int i,int j,int k);
@@ -58,6 +61,12 @@ Real W_out; // outer inclination of disk
 Real L_in[3] = {0.0, 0.0, 1.0}; // ang mom vector (Cartesian) at r_in
 Real L_out[3] = {0.0, 0.0, 1.0}; // ang mom vector (Cartesian) at r_out
 } // anonymous namespace
+Real N_mbs; // (global) number of MeshBlocks in the sim
+Real num_inner_cells; // counts the number of cells at r_in (used for debugging Lhat calculation)
+Real M_in; // mass contained in shell at r_in
+Real L_in[3] = {0.0, 0.0, 1.0}; // ang mom vector (Cartesian) at r_in
+Real L_out[3] = {0.0, 0.0, 1.0}; // ang mom vector (Cartesian) at r_out
+} // namespace
 
 // User-defined boundary conditions for disk simulations
 void DiskInnerX1(MeshBlock *pmb, Coordinates *pco, AthenaArray<Real> &prim,FaceField &b,
@@ -128,6 +137,19 @@ void Mesh::InitUserMeshData(ParameterInput *pin) {
   L_out[0] = -std::sin(W_out);
   L_out[2] = std::cos(W_out);
 
+  // variables for setting boundary conditions
+  r_in = pin->GetReal("problem", "r_in"); 
+  W_out = pin->GetOrAddReal("problem", "W_out", 0.0);
+  L_in[0] = -std::sin(W_out);
+  L_in[2] = std::cos(W_out); 
+  L_out[0] = -std::sin(W_out);
+  L_out[2] = std::cos(W_out);
+
+  // used for debugging Lhat calculation
+  num_inner_cells = 0;
+  M_in = 0;
+  N_mbs = 1;
+
   // enroll user-defined boundary condition
   if (mesh_bcs[BoundaryFace::inner_x1] == GetBoundaryFlag("user")) {
     EnrollUserBoundaryFunction(BoundaryFace::inner_x1, DiskInnerX1);
@@ -151,12 +173,14 @@ void Mesh::InitUserMeshData(ParameterInput *pin) {
   // enroll user-defined viscosity
   EnrollViscosityCoefficient(alpha_viscosity);
 
-  // save L_in to history file
-  AllocateUserHistoryOutput(3);
+  // save L_in and debugging variables to history file
+  AllocateUserHistoryOutput(5);
   EnrollUserHistoryOutput(0, L_in_component, "Lx_in");
   EnrollUserHistoryOutput(1, L_in_component, "Ly_in");
   EnrollUserHistoryOutput(2, L_in_component, "Lz_in");
-  
+  EnrollUserHistoryOutput(3, Num_inner_cells, "Ncells_in");
+  EnrollUserHistoryOutput(4, get_M_in, "M_in");
+
   return;
 }
 
@@ -209,6 +233,8 @@ void MeshBlock::ProblemGenerator(ParameterInput *pin) {
   return;
 }
 
+// at the end of each cycle, calculate this mesh/core's total L_in,
+// then calculate+store the global L_in
 void Mesh::UserWorkInLoop() {
 
   // this mesh's contribution to the ang mom (L) vector at r_in
@@ -219,61 +245,117 @@ void Mesh::UserWorkInLoop() {
   // variables that are updated for every MeshBlock (mb) 
   Real den;
   Real r, theta, phi, vr, vtheta, vphi;
+  Real dr, dtheta, dphi; // grid spacing
+  Real dV; // volume element
   Real x, y, z, vx, vy, vz;
-
+  // debugging variables
+  Real mesh_Ncells_in = 0; // number of cells at r_in (this mesh)
+  Real mesh_M_in = 0; // mass at r_in (this mesh)
+  Real mesh_N_mbs = nblocal; // number of MeshBlocks (this mesh)
+  
   // this loop calculates this mesh's contribution to L(r_in)
   for (int b=0; b<nblocal; ++b) {
     MeshBlock *pmb = my_blocks(b);
-    // primitive variables        
-    AthenaArray<Real> &w = pmb->phydro->w;
+    // primitive variables
+    //AthenaArray<Real> &w = pmb->phydro->w;
+    // conserved variables
+    AthenaArray<Real> &u = pmb->phydro->u;
 
-    int il = pmb->is;
+    // index of r_in in r direction
+    int i = pmb->is;
+
+    // debugging
+    // printf("b= %d \n", b);
+    //printf("mb_in= %.2f \n", pmb->pcoord->x1f(i));
+
     // ignore MeshBlocks (mbs) that don't include r_in
-    if (pmb->pcoord->x1f(il) > r_in) {
+    if (pmb->loc.lx1 != 0) {
 	continue;
     }
-    int iu = pmb->ie, jl = pmb->js, ju = pmb->je,
+
+    int jl = pmb->js, ju = pmb->je,
         kl = pmb->ks, ku = pmb->ke;
-    for (int i=il; i<=iu; i++) {
-      r = pmb->pcoord->x1f(i);
-      // only look at cells whose leftmost/innermost r = r_in
-      if (r != r_in) {
-        continue;
-      }
-      // adds this mb's L_in to the mesh's L_in
-      for (int j=jl; j<ju; j++) {
-        for (int k=kl; k<ku; k++) {
-	  theta = pmb->pcoord->x1f(j);
-	  phi = pmb->pcoord->x1f(k);
+    
+    // r of the volume-weighted center
+    r = pmb->pcoord->x1v(i);  
+    // grid spacing (assuming uniform spacing)
+    dr = pmb->pcoord->x1v(i+1) - r;
+    dtheta = pmb->pcoord->x2v(jl+1) - pmb->pcoord->x2v(jl); 
+    dphi = pmb->pcoord->x3v(kl+1) - pmb->pcoord->x3v(kl);  
 
-          den = w(IDN,k,j,i);
-	  vr = w(IM1,k,j,i);
-	  vtheta = w(IM2,k,j,i);
-	  vphi = w(IM3,k,j,i);
+    // debugging
+    printf("i= %d \n", i);
+    printf("r=%.2f \n", r);
 
-          SphToCart(r, theta, phi, x, y, z);	  
-          VelSphToCart(theta, phi, vr, vtheta, vphi,
-	     vx, vy, vz);
-   	  
-	  // L = m(r x v)
-	  mesh_L_in[0] += den*sin(theta) * (y*vz - z*vy);
-	  mesh_L_in[1] += den*sin(theta) * (z*vx - x*vz);
-	  mesh_L_in[2] += den*sin(theta) * (x*vy - y*vx);
+    // adds this mb's L_in to the mesh's L_in
+    for (int j=jl; j<=ju; j++) {
+      for (int k=kl; k<=ku; k++) {
+        // debugging
+        mesh_Ncells_in += 1;
 	  
-	}
-      }   
-    } // end of i,j,k loop within this mb
-   
+	theta = pmb->pcoord->x2v(j);
+	phi = pmb->pcoord->x3v(k);
+
+        den = u(IDN,k,j,i);
+	vr = u(IM1,k,j,i) / den;
+	vtheta = u(IM2,k,j,i) / den;
+	vphi = u(IM3,k,j,i) / den;
+
+        SphToCart(r, theta, phi, x, y, z);
+        VelSphToCart(theta, phi, vr, vtheta, vphi,
+	     vx, vy, vz);
+
+	// debugging
+	//printf("x,y,z=%.2f, %.2f, %.2f, \n", x,y,z);
+        //printf("vx,vy,vz=%.2f, %.2f, %.2f, \n", vx,vy,vz);
+
+	// dL = dm(r x v)
+	dV = r*r * std::sin(theta) * dr * dtheta * dphi;
+	mesh_L_in[0] += den*dV * (y*vz - z*vy);
+	mesh_L_in[1] += den*dV * (z*vx - x*vz);
+	mesh_L_in[2] += den*dV * (x*vy - y*vx);
+
+	// debugging
+	mesh_M_in += den*dV; // den*dV;
+	//printf("j=%d \n", j);
+	//printf("theta=%.2f \n", theta);
+	//printf("k=%.d \n", k);
+	//printf("phi=%.2f \n", phi);
+	//printf("dV=%.8f \n", dV);
+	//printf("den=%.3f \n", den);
+      }
+    } // end of j,k loop within this mb
+
+    // debugging
+    // printf("mesh_Ncells_in= %.1f \n", mesh_Ncells_in);
+
   } // end of loop within mesh
 
   // send L_in to all cores/processes
   #ifdef MPI_PARALLEL
       MPI_Allreduce(&mesh_L_in, &L_in, 3, MPI_ATHENA_REAL, MPI_SUM, MPI_COMM_WORLD);
+      MPI_Allreduce(&mesh_Ncells_in, &num_inner_cells, 1, MPI_ATHENA_REAL, MPI_SUM, MPI_COMM_WORLD);
+      MPI_Allreduce(&mesh_M_in, &M_in, 1, MPI_ATHENA_REAL, MPI_SUM, MPI_COMM_WORLD);
+      MPI_Allreduce(&mesh_N_mbs, &N_mbs, 1, MPI_ATHENA_REAL, MPI_SUM, MPI_COMM_WORLD);
+      //std::copy(mesh_L_in, mesh_L_in+3, L_in);
+      //num_inner_cells = mesh_Ncells_in;
+      //M_in = mesh_M_in;
+      
+      // debugging
+      //printf("L_x= %.4f \n", L_in[0]);
+      //printf("L_y= %.4f \n", L_in[1]);
+      //printf("L_z= %.4f \n", L_in[2]);
+      //printf("M_in= %.3f \n", M_in);
+      //printf("N_mbs=%d \n", N_mbs);
+      //printf("parallelized, mesh_Ncells_in= %.1f \n", mesh_Ncells_in);
+      //printf("num_inner_cells= %.1f \n", num_inner_cells);
   #else // if only using one core
       std::copy(mesh_L_in, mesh_L_in+3, L_in);
       // L_in = mesh_L_in; // sloppy imo
+      num_inner_cells = mesh_Ncells_in;
+      printf("1 core, num_inner_cells= %.1f \n", mesh_Ncells_in);
   #endif
- 
+
   return;
 }
 
@@ -329,7 +411,6 @@ void alpha_viscosity(HydroDiffusion *phdif, MeshBlock *pmb,
 	    }
 	  }
    }
- //  printf("alpha_viscosity called");
 
   return;
 }
@@ -338,7 +419,21 @@ void alpha_viscosity(HydroDiffusion *phdif, MeshBlock *pmb,
  * Saves components of L_in to history file; see Mesh::InitUserMeshData.
  */
 Real L_in_component(MeshBlock *pmb, int iout) {
-  return L_in[iout];
+  return L_in[iout] / N_mbs;
+}
+
+/*
+ * Saves the number of cells at r_in to history file. 
+ */
+Real Num_inner_cells(MeshBlock *pmb, int iout) {
+  return num_inner_cells / N_mbs;
+}
+
+/*
+ * Returns the mass contained within the shell at r_in.
+ */
+Real get_M_in(MeshBlock *pmb, int iout) {
+  return M_in / N_mbs;
 }
 
 // namespace for custom helper functions, eg,

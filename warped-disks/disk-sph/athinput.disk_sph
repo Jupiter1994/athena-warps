@@ -30,7 +30,7 @@ xorder      = 2         # order of spatial reconstruction
 ncycle_out  = 1         # interval for stdout summary info
 
 <mesh> # (x1,x2,x3) = (R, theta, phi)
-nx1         = 40 # 64       # Number of zones in X1-direction
+nx1         = 40 # 40       # Number of zones in X1-direction
 x1min       = 0.5       # minimum value of X1
 x1max       = 2.0       # 2.0       # maximum value of X1
 ix1_bc      = user      # Inner-X1 boundary condition flag
@@ -44,7 +44,7 @@ x2max       = 1.7708    # 1.8958    # maximum value of X2
 ix2_bc      = reflecting      # Inner-X2 boundary condition flag
 ox2_bc      = reflecting      # Outer-X2 boundary condition flag
 
-nx3         = 20 # 256            # Number of zones in X3-direction
+nx3         = 10 # 256            # Number of zones in X3-direction
 x3min       = 0.0            # minimum value of X3
 x3max       = 6.2831853071795862  # maximum value of X3
 ix3_bc      = periodic       # Inner-X3 boundary condition flag
@@ -53,9 +53,9 @@ ox3_bc      = periodic       # Outer-X3 boundary condition flag
 # refinement  = None
 
 <meshblock>
-nx1        = 20         # Number of zones per MeshBlock in X1-direction
-nx2        = 20         # Number of zones per MeshBlock in X2-direction
-nx3        = 20         # Number of zones per MeshBlock in X3-direction
+nx1        = 40         # Number of zones per MeshBlock in X1-direction
+nx2        = 50         # Number of zones per MeshBlock in X2-direction
+nx3        = 10         # Number of zones per MeshBlock in X3-direction
 
 <hydro>
 gamma           = 1.66666667 # gamma = C_p/C_v
@@ -78,15 +78,20 @@ r_1         = 1.0
 r_2         = 3.0
 xi_1        = 0.0
 xi_2        = 0.0
+W_in        = 0.0
 W_out       = 0.0
 # alpha_0     = 0.001
 alpha_const = 0.2 # added 2/19/26
-r_in = 0.5 # used for calculating inner BC 
+r_in = 0.5 # used for calculating inner BC
+
+## the disk's initial inclination angle
+## (it's rotated about the y-axis)
+beta = 0.05 
 
 ## params for "basic" gap profile
 R_gap = 1.0 # center of gap
 Delta_gap = 0.1 # half-width of gap
-depth_gap = 2.0 # depth of gap
+depth_gap = 1.0 # depth of gap (1=no gap)
 
 ## below params are for the more complex gap profile
 # depth_gap = 19.0
