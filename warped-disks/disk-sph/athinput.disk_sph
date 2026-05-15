@@ -4,7 +4,7 @@ reference =
 configure = --prob=disk --coord=spherical_polar
 
 <job>
-problem_id  = /scratch/phn2956/disk-sph15/disk      # problem ID: basename of output filenames
+problem_id  = /scratch/phn2956/disk-sph17/disk      # problem ID: basename of output filenames
 
 <output1> 
 file_type   = hdf5      # default: vtk output
@@ -44,7 +44,7 @@ x2max       = 1.7708    # 1.8958    # maximum value of X2
 ix2_bc      = reflecting      # Inner-X2 boundary condition flag
 ox2_bc      = reflecting      # Outer-X2 boundary condition flag
 
-nx3         = 10 # 256            # Number of zones in X3-direction
+nx3         = 20 # 256            # Number of zones in X3-direction
 x3min       = 0.0            # minimum value of X3
 x3max       = 6.2831853071795862  # maximum value of X3
 ix3_bc      = periodic       # Inner-X3 boundary condition flag
@@ -53,9 +53,9 @@ ox3_bc      = periodic       # Outer-X3 boundary condition flag
 # refinement  = None
 
 <meshblock>
-nx1        = 40         # Number of zones per MeshBlock in X1-direction
-nx2        = 50         # Number of zones per MeshBlock in X2-direction
-nx3        = 10         # Number of zones per MeshBlock in X3-direction
+nx1        = 20         # Number of zones per MeshBlock in X1-direction
+nx2        = 20         # Number of zones per MeshBlock in X2-direction
+nx3        = 20         # Number of zones per MeshBlock in X3-direction
 
 <hydro>
 gamma           = 1.66666667 # gamma = C_p/C_v
@@ -82,7 +82,6 @@ W_in        = 0.0
 W_out       = 0.0
 # alpha_0     = 0.001
 alpha_const = 0.2 # added 2/19/26
-r_in = 0.5 # used for calculating inner BC
 
 ## the disk's initial inclination angle
 ## (it's rotated about the y-axis)
@@ -91,7 +90,7 @@ beta = 0.05
 ## params for "basic" gap profile
 R_gap = 1.0 # center of gap
 Delta_gap = 0.1 # half-width of gap
-depth_gap = 1.0 # depth of gap (1=no gap)
+depth_gap = 2.0 # depth of gap (1=no gap)
 
 ## below params are for the more complex gap profile
 # depth_gap = 19.0
