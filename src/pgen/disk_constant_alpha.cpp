@@ -614,15 +614,16 @@ void DiskInnerX1(MeshBlock *pmb,Coordinates *pco, AthenaArray<Real> &prim, FaceF
 	r = pco->x1v(il);
 	theta = pco->x2v(j);
 	phi = pco->x3v(k);
-	GetZfromL(r, theta, phi, L_in, z);
+	//GetZfromL(r, theta, phi, L_in, z);
 	rad = std::sqrt(r*r - z*z); 
 	for (int i=1; i<=ngh; ++i) {
 	  r_gh = pco->x1v(il-i);
 
-          //GetCylCoord(pco,rad_gh,phi,z_gh,il-i,j,k);
-          //GetCylCoord(pco,rad,phi,z,il,j,k); 
-	  GetZfromL(r_gh, theta, phi, L_in, z_gh);
-          rad_gh = std::sqrt(r_gh*r_gh - z_gh*z_gh);
+          GetCylCoord(pco,rad_gh,phi,z_gh,il-i,j,k);
+          GetCylCoord(pco,rad,phi,z,il,j,k); 
+	 
+	  //GetZfromL(r_gh, theta, phi, L_in, z_gh);
+          // rad_gh = std::sqrt(r_gh*r_gh - z_gh*z_gh);
 
           prim(IDN,k,j,il-i) = prim(IDN,k,j,il) *
 	  	DenProfileCyl(rad_gh,phi,z_gh)/DenProfileCyl(rad,phi,z);
@@ -633,9 +634,9 @@ void DiskInnerX1(MeshBlock *pmb,Coordinates *pco, AthenaArray<Real> &prim, FaceF
             vel -= vK(pmb->porb, pco->x1v(il-i), pco->x2v(j), pco->x3v(k));
           //prim(IM1,k,j,il-i) = prim(IM1,k,j,il) *
 	//	 VrProfileCyl(rad_gh,phi,z_gh)/VrProfileCyl(rad,phi,z); // v_r
-	  prim(IM1,k,j,il-i) = prim(IM1,k,j,il) * std::pow(rad_gh/rad,0.5); // v_r
+	  prim(IM1,k,j,il-i) = prim(IM1,k,j,il) * std::pow(r_gh/r,0.5); // v_r
           prim(IM2,k,j,il-i) = 0.0; // v_theta
-          prim(IM3,k,j,il-i) = prim(IM3,k,j,il) * std::pow(rad_gh/rad,-0.5); // v_phi
+          prim(IM3,k,j,il-i) = prim(IM3,k,j,il) * std::pow(r_gh/r,-0.5); // v_phi
           if (NON_BAROTROPIC_EOS)
             prim(IEN,k,j,il-i) = PoverR(rad, phi, z)*prim(IDN,k,j,il-i);
         }
@@ -689,10 +690,10 @@ void DiskOuterX1(MeshBlock *pmb,Coordinates *pco, AthenaArray<Real> &prim, FaceF
         theta = pco->x2v(j);
         phi = pco->x3v(k);
 	for (int i=1; i<=ngh; ++i) {
-          //GetCylCoord(pco,rad_gh,phi,z_gh,iu+i,j,k);
+          GetCylCoord(pco,rad_gh,phi,z_gh,iu+i,j,k);
           //r = pco->x1v(iu); 
           r_gh = pco->x1v(iu+i);
-          GetZfromL(r_gh, theta, phi, L_out, z_gh); 
+          //GetZfromL(r_gh, theta, phi, L_out, z_gh); 
           rad_gh = std::sqrt(r_gh*r_gh - z_gh*z_gh);
 
           //prim(IDN,k,j,iu+i) = prim(IDN,k,j,iu) * std::pow(r_gh/r,-1.5);
