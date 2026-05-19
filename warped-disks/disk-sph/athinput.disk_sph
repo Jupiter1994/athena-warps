@@ -4,17 +4,17 @@ reference =
 configure = --prob=disk --coord=spherical_polar
 
 <job>
-problem_id  = /scratch/phn2956/disk-sph4/disk      # problem ID: basename of output filenames
+problem_id  = /scratch/phn2956/disk-sph3b/disk      # problem ID: basename of output filenames
 
 <output1> 
 file_type   = hdf5      # default: vtk output
 variable    = prim      # prim or cons
-dt          = 62.8      #62.8      # time increment between outputs
+dt          = 31.4      #62.8      # time increment between outputs
 ghost_zones = 1         # default = false 
 
 <output2>
 file_type   = hst       # History data dump
-dt          = 62.8      # 0.0628    # time increment between outputs
+dt          = 6.28      # 0.0628    # time increment between outputs
 
 <output3>
 file_type   = rst       # Restart data dump
@@ -29,7 +29,7 @@ xorder      = 2         # order of spatial reconstruction
 ncycle_out  = 1         # interval for stdout summary info
 
 <mesh> # (x1,x2,x3) = (R, theta, phi)
-nx1         = 40 # 64       # Number of zones in X1-direction
+nx1         = 20 # 64       # Number of zones in X1-direction
 x1min       = 0.5       # minimum value of X1
 x1max       = 2.0       # 2.0       # maximum value of X1
 ix1_bc      = user      # Inner-X1 boundary condition flag
@@ -43,7 +43,7 @@ x2max       = 1.8208    # 1.8958    # maximum value of X2
 ix2_bc      = reflecting      # Inner-X2 boundary condition flag
 ox2_bc      = reflecting      # Outer-X2 boundary condition flag
 
-nx3         = 20 # 256            # Number of zones in X3-direction
+nx3         = 10 # 256            # Number of zones in X3-direction
 x3min       = 0.0            # minimum value of X3
 x3max       = 6.2831853071795862  # maximum value of X3
 ix3_bc      = periodic       # Inner-X3 boundary condition flag
@@ -53,8 +53,8 @@ ox3_bc      = periodic       # Outer-X3 boundary condition flag
 
 <meshblock>
 nx1        = 20         # Number of zones per MeshBlock in X1-direction
-nx2        = 20         # Number of zones per MeshBlock in X2-direction
-nx3        = 20         # Number of zones per MeshBlock in X3-direction
+nx2        = 10         # Number of zones per MeshBlock in X2-direction
+nx3        = 10         # Number of zones per MeshBlock in X3-direction
 
 <hydro>
 gamma           = 1.66666667 # gamma = C_p/C_v
