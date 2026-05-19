@@ -183,7 +183,7 @@ void MeshBlock::ProblemGenerator(ParameterInput *pin) {
   Real rad(0.0), phi(0.0), z(0.0);
   Real den, vel;
   Real x1, x2, x3;
-  Real gap_R; // density gap profile
+  //Real gap_R; // density gap profile
   
   OrbitalVelocityFunc &vK = porb->OrbitalVelocity;
   //  Initialize density and momenta
@@ -195,8 +195,8 @@ void MeshBlock::ProblemGenerator(ParameterInput *pin) {
         x1 = pcoord->x1v(i);
         GetCylCoord(pcoord,rad,phi,z,i,j,k); // convert to cylindrical coordinates
         // compute initial conditions in cylindrical coordinates
-        gap_R = gapProfile(rad,phi,z);
-	den = DenProfileCyl(rad,phi,z) / gap_R; // apply gap profile
+        //gap_R = gapProfile(rad,phi,z);
+	den = DenProfileCyl(rad,phi,z); // / gap_R; // apply gap profile
         vel = VelProfileCyl(rad,phi,z);
         if (porb->orbital_advection_defined)
           vel -= vK(porb, x1, x2, x3);
@@ -540,13 +540,13 @@ Real gapProfile(const Real rad, const Real phi, const Real z) {
 Real DenProfileCyl(const Real rad, const Real phi, const Real z) {
   Real den;
   Real p_over_r = p0_over_r0;
-  //Real gap_R = gapProfile(rad,phi,z);
+  Real gap_R = gapProfile(rad,phi,z);
 
   if (NON_BAROTROPIC_EOS) p_over_r = PoverR(rad, phi, z);
   
   Real denmid = rho0*std::pow(rad/r0,dslope);
   Real dentem = denmid*std::exp(gm0/p_over_r*(1./std::sqrt(SQR(rad)+SQR(z))-1./rad));
-  den = dentem;// * (1.0/gap_R);
+  den = dentem * (1.0/gap_R);
 
   return std::max(den,dfloor);
 }
@@ -694,7 +694,7 @@ void DiskOuterX1(MeshBlock *pmb,Coordinates *pco, AthenaArray<Real> &prim, FaceF
           //r = pco->x1v(iu); 
           r_gh = pco->x1v(iu+i);
           //GetZfromL(r_gh, theta, phi, L_out, z_gh); 
-          rad_gh = std::sqrt(r_gh*r_gh - z_gh*z_gh);
+          //rad_gh = std::sqrt(r_gh*r_gh - z_gh*z_gh);
 
           //prim(IDN,k,j,iu+i) = prim(IDN,k,j,iu) * std::pow(r_gh/r,-1.5);
 	  prim(IDN,k,j,iu+i) = DenProfileCyl(rad_gh,phi,z_gh); // hold the outer rho fixed
