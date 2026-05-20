@@ -4,7 +4,7 @@ reference =
 configure = --prob=disk --coord=spherical_polar
 
 <job>
-problem_id  = /scratch/phn2956/disk-sph20/disk      # problem ID: basename of output filenames
+problem_id  = /scratch/phn2956/disk-sph3d/disk      # problem ID: basename of output filenames
 
 <output1> 
 file_type   = hdf5      # default: vtk output
@@ -39,8 +39,8 @@ ox1_bc      = user      # Outer-X1 boundary condition flag
 
 nx2         = 40 # 32        # Number of zones in X2-direction
 # theta half-width = 4c_s = 0.2; pi/2 = 1.5708; tilt by W_out
-x2min       = 1.3708    # 1.2458    # minimum value of X2
-x2max       = 1.7708    # 1.8958    # maximum value of X2
+x2min       = 1.3208    # 1.2458    # minimum value of X2
+x2max       = 1.8208    # 1.8958    # maximum value of X2
 ix2_bc      = reflecting      # Inner-X2 boundary condition flag
 ox2_bc      = reflecting      # Outer-X2 boundary condition flag
 
