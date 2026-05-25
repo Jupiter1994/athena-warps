@@ -489,7 +489,7 @@ void GetZfromL(Real r, Real theta, Real phi, Real L[], Real &z_mp) {
   z_mp /= Lmag;
 
   // debugging: for W_out=0, this is the correct z_mp 
-  z_mp = z;
+  // z_mp = z;
 
   return;
 }
