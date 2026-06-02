@@ -46,9 +46,6 @@ Real DenProfileCyl(const Real rad, const Real phi, const Real z);
 Real gapProfile(const Real rad, const Real phi, const Real z); // density gap profile
 Real PoverR(const Real rad, const Real phi, const Real z);
 Real VelProfileCyl(const Real rad, const Real phi, const Real z);
-// custom helper function for the tilted disk
-void GetDenVelTilted(Real r, Real theta, Real phi, Real beta, Real &den,
-                Real &vr, Real &vtheta, Real &vphi);
 // custom helper functions used in Mesh::UserWorkInLoop
 void SphToCart(Real r, Real theta, Real phi, Real &x, Real &y, Real &z);
 void VelSphToCart(Real theta, Real phi, Real vr, Real vtheta, Real vphi,
@@ -63,7 +60,7 @@ Real Omega0;
 Real alpha_const; // alpha viscosity parameter
 Real W_out; // outer inclination of disk
 // variables used for calculating Lhat
-//Real N_mbs; // (global) number of MeshBlocks in the sim
+Real N_mbs; // (global) number of MeshBlocks in the sim
 //Real num_inner_cells; // counts the number of cells at r_in (used for debugging Lhat calculation)
 //Real M_in; // mass contained in shell at r_in
 Real L_in[3] = {0.0, 0.0, 1.0}; // ang mom vector (Cartesian) at r_in
@@ -139,9 +136,10 @@ void Mesh::InitUserMeshData(ParameterInput *pin) {
   L_out[2] = std::cos(W_out);
 
   // used for debugging Lhat calculation
-  //num_inner_cells = 0;
-  //M_in = 0;
-  //N_mbs = 1;
+ // num_inner_cells = 0;
+ // M_in = 0;
+  // used for history output functions
+  N_mbs = 1;
 
   // enroll user-defined boundary condition
   if (mesh_bcs[BoundaryFace::inner_x1] == GetBoundaryFlag("user")) {
@@ -243,8 +241,8 @@ void Mesh::UserWorkInLoop() {
   Real dV; // volume element
   Real x, y, z, vx, vy, vz;
   // debugging variables
-  Real mesh_Ncells_in = 0; // number of cells at r_in (this mesh)
-  Real mesh_M_in = 0; // mass at r_in (this mesh)
+  //Real mesh_Ncells_in = 0; // number of cells at r_in (this mesh)
+  //Real mesh_M_in = 0; // mass at r_in (this mesh)
   Real mesh_N_mbs = nblocal; // number of MeshBlocks (this mesh)
   
   // this loop calculates this mesh's contribution to L(r_in)
@@ -285,7 +283,7 @@ void Mesh::UserWorkInLoop() {
     for (int j=jl; j<=ju; j++) {
       for (int k=kl; k<=ku; k++) {
         // debugging
-        mesh_Ncells_in += 1;
+        //mesh_Ncells_in += 1;
 	  
 	theta = pmb->pcoord->x2v(j);
 	phi = pmb->pcoord->x3v(k);
@@ -310,7 +308,7 @@ void Mesh::UserWorkInLoop() {
 	mesh_L_in[2] += den*dV * (x*vy - y*vx);
 
 	// debugging
-	mesh_M_in += den*dV; // den*dV;
+	//mesh_M_in += den*dV; // den*dV;
 	//printf("j=%d \n", j);
 	//printf("theta=%.2f \n", theta);
 	//printf("k=%.d \n", k);
@@ -328,8 +326,9 @@ void Mesh::UserWorkInLoop() {
   // send L_in to all cores/processes
   #ifdef MPI_PARALLEL
       MPI_Allreduce(&mesh_L_in, &L_in, 3, MPI_ATHENA_REAL, MPI_SUM, MPI_COMM_WORLD);
-      MPI_Allreduce(&mesh_Ncells_in, &num_inner_cells, 1, MPI_ATHENA_REAL, MPI_SUM, MPI_COMM_WORLD);
-      MPI_Allreduce(&mesh_M_in, &M_in, 1, MPI_ATHENA_REAL, MPI_SUM, MPI_COMM_WORLD);
+      //MPI_Allreduce(&mesh_Ncells_in, &num_inner_cells, 1, MPI_ATHENA_REAL, MPI_SUM, MPI_COMM_WORLD);
+      //MPI_Allreduce(&mesh_M_in, &M_in, 1, MPI_ATHENA_REAL, MPI_SUM, MPI_COMM_WORLD);
+      // N_mbs is used in the history output functions
       MPI_Allreduce(&mesh_N_mbs, &N_mbs, 1, MPI_ATHENA_REAL, MPI_SUM, MPI_COMM_WORLD);
       //std::copy(mesh_L_in, mesh_L_in+3, L_in);
       //num_inner_cells = mesh_Ncells_in;
@@ -346,7 +345,7 @@ void Mesh::UserWorkInLoop() {
   #else // if only using one core
       std::copy(mesh_L_in, mesh_L_in+3, L_in);
       // L_in = mesh_L_in; // sloppy imo
-      num_inner_cells = mesh_Ncells_in;
+      //num_inner_cells = mesh_Ncells_in;
       printf("1 core, num_inner_cells= %.1f \n", mesh_Ncells_in);
   #endif
 
@@ -420,14 +419,14 @@ Real L_in_component(MeshBlock *pmb, int iout) {
  * Saves the number of cells at r_in to history file. 
  */
 //Real Num_inner_cells(MeshBlock *pmb, int iout) {
- // return num_inner_cells / N_mbs;
+  //return num_inner_cells / N_mbs;
 //}
 
 /*
  * Returns the mass contained within the shell at r_in.
  */
 //Real get_M_in(MeshBlock *pmb, int iout) {
-//  return M_in / N_mbs;
+  //return M_in / N_mbs;
 //}
 
 // namespace for custom helper functions, eg,
@@ -627,20 +626,20 @@ void DiskInnerX1(MeshBlock *pmb,Coordinates *pco, AthenaArray<Real> &prim, FaceF
           //GetCylCoord(pco,rad,phi,z,il,j,k); 
 	 
 	  GetZfromL(r_gh, theta, phi, L_in, z_gh);
-          rad_gh = std::sqrt(r_gh*r_gh - z_gh*z_gh);
+          //rad_gh = std::sqrt(r_gh*r_gh - z_gh*z_gh);
 
           prim(IDN,k,j,il-i) = prim(IDN,k,j,il) *
-	  	DenProfileCyl(rad_gh,phi,z_gh)/DenProfileCyl(rad,phi,z);
-	  // below line doesn't care about midplane's location
-          //prim(IDN,k,j,il-i) = prim(IDN,k,j,il) * std::pow(rad_gh/rad,-3);
+	     DenProfileCyl(r_gh,phi,z_gh)/DenProfileCyl(r,phi,z); // assume r~R
+          // DenProfileCyl(rad_gh,phi,z_gh)/DenProfileCyl(rad,phi,z);
 	  // vel = VelProfileCyl(rad,phi,z);
           if (pmb->porb->orbital_advection_defined)
             vel -= vK(pmb->porb, pco->x1v(il-i), pco->x2v(j), pco->x3v(k));
           prim(IM1,k,j,il-i) = prim(IM1,k,j,il) *
-		 VrProfileCyl(rad_gh,phi,z_gh)/VrProfileCyl(rad,phi,z); // v_r
+		 VrProfileCyl(r_gh,phi,z_gh)/VrProfileCyl(r,phi,z); // assume r~R
+		  //VrProfileCyl(rad_gh,phi,z_gh)/VrProfileCyl(rad,phi,z); // v_r
 	  //prim(IM1,k,j,il-i) = prim(IM1,k,j,il) * std::pow(rad_gh/rad,0.5); // v_r
           prim(IM2,k,j,il-i) = 0.0; // v_theta
-          prim(IM3,k,j,il-i) = prim(IM3,k,j,il) * std::pow(rad_gh/rad,-0.5); // v_phi
+          prim(IM3,k,j,il-i) = prim(IM3,k,j,il) * std::pow(r_gh/r,-0.5); // v_phi; assume r~R
           if (NON_BAROTROPIC_EOS)
             prim(IEN,k,j,il-i) = PoverR(rad, phi, z)*prim(IDN,k,j,il-i);
         }
@@ -700,9 +699,8 @@ void DiskOuterX1(MeshBlock *pmb,Coordinates *pco, AthenaArray<Real> &prim, FaceF
           GetZfromL(r_gh, theta, phi, L_out, z_gh); 
           rad_gh = std::sqrt(r_gh*r_gh - z_gh*z_gh);
 
-          //prim(IDN,k,j,iu+i) = prim(IDN,k,j,iu) * std::pow(r_gh/r,-1.5);
 	  prim(IDN,k,j,iu+i) = DenProfileCyl(rad_gh,phi,z_gh); // hold the outer rho fixed
-          // vel = VelProfileCyl(rad,phi,z);
+	  // vel = VelProfileCyl(rad,phi,z);
           if (pmb->porb->orbital_advection_defined)
             vel -= vK(pmb->porb, pco->x1v(iu+i), pco->x2v(j), pco->x3v(k));
           prim(IM1,k,j,iu+i) = VrProfileCyl(rad_gh,phi,z_gh); // v_r
