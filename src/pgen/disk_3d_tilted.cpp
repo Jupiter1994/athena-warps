@@ -188,7 +188,7 @@ void Mesh::InitUserMeshData(ParameterInput *pin) {
 void MeshBlock::ProblemGenerator(ParameterInput *pin) {
   Real rad(0.0), z(0.0); // only used in non-barotropic case
   Real den, vel;
-  Real vr, vtheta, vphi; // v's spherical components
+  Real vr(0.0), vtheta(0.0), vphi(0.0); // v's spherical components
   Real r, theta, phi;
   Real gap_R; // density gap profile
   
@@ -200,16 +200,30 @@ void MeshBlock::ProblemGenerator(ParameterInput *pin) {
       theta = pcoord->x2v(j);
       for (int i=is; i<=ie; ++i) {
         r = pcoord->x1v(i);
-        //GetCylCoord(pcoord,rad,phi,z,i,j,k); // convert to cylindrical coordinates
-        // initialize the disk with a gap profile
-	if (std::cos(phi) > 0) // x > 0
+        
+	// flat version
+	//GetCylCoord(pcoord,rad,phi,z,i,j,k); // convert to cylindrical coordinates
+        //gap_R = gapProfile(rad,phi,z);
+	//den = DenProfileCyl(rad,phi,z) / gap_R; // apply gap profile
+        //vel = VelProfileCyl(rad,phi,z);
+
+	// tilted version
+	if (std::cos(phi) > 0) { // x > 0
+	    // eg, midplane at theta=80 if W_out=10 deg
 	    gap_R = gapProfile(r,phi,r*cos(theta+W_out)); 
-	else
+	    // debugging vphi calculation for i=0
+	    vel = VelProfileCyl(r,phi,r*cos(theta+W_out));
+	} else {
+	    // eg, midplane at theta=100 if W_out=10
 	    gap_R = gapProfile(r,phi,r*cos(theta-W_out));
-        // get background values of density and velocity
+	    // debugging
+	    vel = VelProfileCyl(r,phi,r*cos(theta-W_out));
+        }
+	// get background values of density and velocity
         GetDenVelTilted(r, theta, phi, W_out, den, vr, vtheta, vphi);
 	den /= gap_R; // apply gap profile
-        if (porb->orbital_advection_defined)
+
+	if (porb->orbital_advection_defined)
             vel -= vK(porb, r, theta, phi);
         phydro->u(IDN,k,j,i) = den;
         phydro->u(IM1,k,j,i) = den*vr; //0.0;
@@ -218,7 +232,7 @@ void MeshBlock::ProblemGenerator(ParameterInput *pin) {
           phydro->u(IM3,k,j,i) = 0.0;
         } else if (std::strcmp(COORDINATE_SYSTEM, "spherical_polar") == 0) {
           phydro->u(IM2,k,j,i) = den*vtheta; // 0.0;
-          phydro->u(IM3,k,j,i) = den*vphi; // den*vel;
+	  phydro->u(IM3,k,j,i) = den*vphi; // den*vel;
         }
 
         if (NON_BAROTROPIC_EOS) {
@@ -496,7 +510,7 @@ void VelSphToCart(Real theta, Real phi, Real vr, Real vtheta, Real vphi,
 
 /**
 * Converts a Cartesian velocity vector to spherical coordinates. Note that
-* this requires the position vector’s theta and phi coordinates.
+* this requires the position vector's theta and phi coordinates.
 */
 void VelCartToSph(Real theta, Real phi, Real vx, Real vy, Real vz,
 	       	Real &vr, Real &vtheta, Real &vphi) {
@@ -511,9 +525,34 @@ void VelCartToSph(Real theta, Real phi, Real vx, Real vy, Real vz,
       {std::cos(theta)*std::cos(phi), std::cos(theta)*std::sin(phi), -std::sin(theta)};
   std::vector<Real> phiHat = {-std::sin(phi), std::cos(phi), 0};
 
-  vr = std::inner_product(vCart.begin(), vCart.end(), rHat.begin(), 0);
-  vtheta = std::inner_product(vCart.begin(), vCart.end(), thetaHat.begin(), 0);
-  vphi = std::inner_product(vCart.begin(), vCart.end(), phiHat.begin(), 0);
+  //vr = std::inner_product(vCart.begin(), vCart.end(), rHat.begin(), 0);
+  //vtheta = std::inner_product(vCart.begin(), vCart.end(), thetaHat.begin(), 0);
+  //vphi = std::inner_product(vCart.begin(), vCart.end(), phiHat.begin(), 0);
+
+  // eg, vr = dot product of r-hat with position vector
+  vr = vx*rHat[0] + vy*rHat[1] + vz*rHat[2];
+  vtheta = vx*thetaHat[0] + vy*thetaHat[1] + vz*thetaHat[2];
+  vphi = vx*phiHat[0] + vy*phiHat[1] + vz*phiHat[2];
+
+  // debugging
+  //printf("vphi from VCTS: %.2f \n",vphi);
+
+  return;
+
+}
+
+/**
+ * Converts spherical coordinates to cylindrical.
+ * (Unlike GetCylCoord(), this function allows you to
+ * input an arbitrary set of spherical coordinates.)
+ *
+ * r,theta,phi: spherical coordinates
+ * R,Phi,z: references to the (cylindrical) coordinates you're setting
+ */
+void SphToCyl(Real r, Real theta, Real phi, Real &R, Real &Phi, Real &z) {
+  R = r * std::sin(theta);
+  Phi = phi;
+  z = r * std::cos(theta);
 
   return;
 
@@ -554,6 +593,7 @@ void GetDenVelTilted(Real r, Real theta, Real phi, Real beta, Real &den,
   //Real rad(0.0), Phi(0.0), z(0.0);
   Real x, y, z;
   Real r_, theta_, phi_; // spherical coords of rotated position vector
+  //Real rad_, Phi_, z_; // cylindrical coords in rotated frame
   Real vel;
   Real vx, vy, vz;
 
@@ -563,17 +603,24 @@ void GetDenVelTilted(Real r, Real theta, Real phi, Real beta, Real &den,
   RotateAroundY(x, y, z, -beta);
   CartToSph(x, y, z, r_, theta_, phi_);
   // second, compute steady-state den+vel in the rotated frame
-  //SphToCyl(x1, x2, x3, rad, Phi, z);
-  den = DenProfileCyl(r_,phi_,r_*cos(theta_));
-  vel = VelProfileCyl(r_,phi_,r_*cos(theta_));
+  //SphToCyl(r_, theta_, phi_, rad_, Phi_, z_);
+  // assume R~r
+  den = DenProfileCyl(r_,phi_,z);
+  vel = VelProfileCyl(r_,phi_,z);
 
   // compute the velocity vector in rotated frame
-  vx = -vel * std::sin(phi);
-  vy = vel * std::cos(phi);
+  vx = -vel * std::sin(phi_);
+  vy = vel * std::cos(phi_);
   vz = 0;
   // get velocity at (r,theta,phi) in the de-rotated frame
   RotateAroundY(vx, vy, vz, beta);
   VelCartToSph(theta, phi, vx, vy, vz, vr, vtheta, vphi);
+
+  // debugging
+  //printf("r,theta,phi=%.2f, %.2f, %.2f, \n", r,theta,phi);
+  //printf("vel,vphi=%.2f, %.2f, \n", vel,vphi);
+  //printf("vr,vtheta=%.2f, %.2f, \n", vr,vtheta);
+  //printf("vx,vy=%.2f, %.2f, \n", vx,vy);
 
   return;
 }
@@ -807,22 +854,23 @@ void DiskOuterX1(MeshBlock *pmb,Coordinates *pco, AthenaArray<Real> &prim, FaceF
 	for (int i=1; i<=ngh; ++i) {
           //GetCylCoord(pco,rad_gh,phi,z_gh,iu+i,j,k);
           //r = pco->x1v(iu); 
-          GetZfromL(r_gh, theta, phi, L_out, z_gh); 
           //rad_gh = std::sqrt(r_gh*r_gh - z_gh*z_gh);
           r_gh = pco->x1v(iu+i);
+          GetZfromL(r_gh, theta, phi, L_out, z_gh);
+	  rad_gh = std::sqrt(r_gh*r_gh - z_gh*z_gh);
 
-          GetDenVelTilted(r_gh, theta, phi, W_out, den_gh, vr, vtheta, vphi);
+          // GetDenVelTilted(r_gh, theta, phi, W_out, den_gh, vr, vtheta, vphi);
 
-	  prim(IDN,k,j,iu+i) = den_gh; // DenProfileCyl(rad_gh,phi,z_gh); // hold the outer rho fixed
+	  prim(IDN,k,j,iu+i) = DenProfileCyl(rad_gh,phi,z_gh); // den_gh; //  hold the outer rho fixed
 	  // vel = VelProfileCyl(rad,phi,z);
           if (pmb->porb->orbital_advection_defined)
             vel -= vK(pmb->porb, pco->x1v(iu+i), pco->x2v(j), pco->x3v(k));
-          prim(IM1,k,j,iu+i) = VrProfileCyl(r_gh,phi,z_gh); // v_r; assume R~r
+          prim(IM1,k,j,iu+i) = VrProfileCyl(rad_gh,phi,z_gh); // v_r; assume R~r
           //vK_gh = std::sqrt(gm0/rad_gh);
 	  //z_over_H = z_gh / std::sqrt(p0_over_r0) * (vK_gh/rad_gh); // H=cs/Omega
           //prim(IM1,k,j,iu+i) = -alpha_const*p0_over_r0/vK_gh * (-3 + 4.5*SQR(z_over_H)); // v_r
-	  prim(IM2,k,j,iu+i) = vtheta; // 0.0; // v_theta
-          prim(IM3,k,j,iu+i) = vphi; // VelProfileCyl(rad_gh,phi,z_gh); // v_phi
+	  prim(IM2,k,j,iu+i) = 0.0; // vtheta; // v_theta
+          prim(IM3,k,j,iu+i) = VelProfileCyl(rad_gh,phi,z_gh); // vphi; // v_phi
           if (NON_BAROTROPIC_EOS)
             prim(IEN,k,j,iu+i) = PoverR(rad, phi, z)*prim(IDN,k,j,iu+i);
         }
