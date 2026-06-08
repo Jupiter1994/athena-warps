@@ -9,13 +9,13 @@ problem_id  = /scratch/phn2956/disk-sph27/disk      # problem ID: basename of ou
 <output1> 
 file_type   = hdf5      # default: vtk output
 variable    = prim      # prim or cons
-dt          = 31.4      #62.8      # time increment between outputs
+dt          = 31.4      #31.4      # time increment between outputs
 #dcycle = 1              # output interval in cycles; can only use dt OR dcycle
 ghost_zones = 1         # default = false 
 
 <output2>
 file_type   = hst       # History data dump
-dt          = 31.4      # 0.0628    # time increment between outputs
+dt          = 3.14      # 3.14    # time increment between outputs
 
 <output3>
 file_type   = rst       # Restart data dump

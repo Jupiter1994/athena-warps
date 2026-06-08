@@ -583,6 +583,7 @@ void RotateAroundY(Real &x, Real &y, Real &z, Real beta) {
 /**
  * Given a set of spherical coordinates and a rotation angle `beta`,
  * return the background values of density and velocity at those coordinates.
+ * (Note: Does NOT include accretion. v_r is set to 0.)
  *
  * r,theta,phi: spherical coordinates
  * beta: rotation angle
@@ -857,20 +858,21 @@ void DiskOuterX1(MeshBlock *pmb,Coordinates *pco, AthenaArray<Real> &prim, FaceF
           //rad_gh = std::sqrt(r_gh*r_gh - z_gh*z_gh);
           r_gh = pco->x1v(iu+i);
           GetZfromL(r_gh, theta, phi, L_out, z_gh);
-	  rad_gh = std::sqrt(r_gh*r_gh - z_gh*z_gh);
+	  //rad_gh = std::sqrt(r_gh*r_gh - z_gh*z_gh);
 
-          // GetDenVelTilted(r_gh, theta, phi, W_out, den_gh, vr, vtheta, vphi);
+          GetDenVelTilted(r_gh, theta, phi, W_out, den_gh, vr, vtheta, vphi);
 
-	  prim(IDN,k,j,iu+i) = DenProfileCyl(rad_gh,phi,z_gh); // den_gh; //  hold the outer rho fixed
+	  prim(IDN,k,j,iu+i) = den_gh; // DenProfileCyl(rad_gh,phi,z_gh); //  hold the outer rho fixed
 	  // vel = VelProfileCyl(rad,phi,z);
           if (pmb->porb->orbital_advection_defined)
             vel -= vK(pmb->porb, pco->x1v(iu+i), pco->x2v(j), pco->x3v(k));
-          prim(IM1,k,j,iu+i) = VrProfileCyl(rad_gh,phi,z_gh); // v_r; assume R~r
+	  // v_r determined by steady-state accretion, not GetDenVelTilted
+          prim(IM1,k,j,iu+i) = VrProfileCyl(r_gh,phi,z_gh); // v_r; assume R~r
           //vK_gh = std::sqrt(gm0/rad_gh);
 	  //z_over_H = z_gh / std::sqrt(p0_over_r0) * (vK_gh/rad_gh); // H=cs/Omega
           //prim(IM1,k,j,iu+i) = -alpha_const*p0_over_r0/vK_gh * (-3 + 4.5*SQR(z_over_H)); // v_r
-	  prim(IM2,k,j,iu+i) = 0.0; // vtheta; // v_theta
-          prim(IM3,k,j,iu+i) = VelProfileCyl(rad_gh,phi,z_gh); // vphi; // v_phi
+	  prim(IM2,k,j,iu+i) = vtheta; // 0.0; // v_theta
+          prim(IM3,k,j,iu+i) = vphi; // VelProfileCyl(rad_gh,phi,z_gh); // v_phi
           if (NON_BAROTROPIC_EOS)
             prim(IEN,k,j,iu+i) = PoverR(rad, phi, z)*prim(IDN,k,j,iu+i);
         }
