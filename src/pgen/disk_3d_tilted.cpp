@@ -35,8 +35,9 @@
 #include "../orbital_advection/orbital_advection.hpp"
 #include "../parameter_input.hpp"
 
-// saves components of L_in to history file
+// save components of L_in and L_out to history file
 Real L_in_component(MeshBlock *pmb, int iout);
+Real L_out_component(MeshBlock *pmb, int iout);
 // saves debugging variables in history file
 //Real Num_inner_cells(MeshBlock *pmb, int iout);
 //Real get_M_in(MeshBlock *pmb, int iout); 
@@ -169,10 +170,13 @@ void Mesh::InitUserMeshData(ParameterInput *pin) {
   EnrollViscosityCoefficient(alpha_viscosity);
 
   // save L_in and debugging variables to history file
-  AllocateUserHistoryOutput(3);
+  AllocateUserHistoryOutput(6);
   EnrollUserHistoryOutput(0, L_in_component, "Lx_in");
   EnrollUserHistoryOutput(1, L_in_component, "Ly_in");
   EnrollUserHistoryOutput(2, L_in_component, "Lz_in");
+  EnrollUserHistoryOutput(3, L_out_component, "Lx_out");
+  EnrollUserHistoryOutput(4, L_out_component, "Ly_out");
+  EnrollUserHistoryOutput(5, L_out_component, "Lz_out");
   // debugging output
   //EnrollUserHistoryOutput(3, Num_inner_cells, "Ncells_in");
   //EnrollUserHistoryOutput(4, get_M_in, "M_in");
@@ -437,6 +441,13 @@ Real L_in_component(MeshBlock *pmb, int iout) {
 }
 
 /*
+ * Saves components of L_out to history file; should be constant.
+ */
+Real L_out_component(MeshBlock *pmb, int iout) {
+  return L_out[iout-3] / N_mbs;
+}
+
+/*
  * Saves the number of cells at r_in to history file. 
  */
 //Real Num_inner_cells(MeshBlock *pmb, int iout) {
@@ -594,7 +605,7 @@ void GetDenVelTilted(Real r, Real theta, Real phi, Real beta, Real &den,
   //Real rad(0.0), Phi(0.0), z(0.0);
   Real x, y, z;
   Real r_, theta_, phi_; // spherical coords of rotated position vector
-  //Real rad_, Phi_, z_; // cylindrical coords in rotated frame
+  Real rad_, Phi_, z_; // cylindrical coords in rotated frame
   Real vel;
   Real vx, vy, vz;
 
@@ -604,10 +615,12 @@ void GetDenVelTilted(Real r, Real theta, Real phi, Real beta, Real &den,
   RotateAroundY(x, y, z, -beta);
   CartToSph(x, y, z, r_, theta_, phi_);
   // second, compute steady-state den+vel in the rotated frame
-  //SphToCyl(r_, theta_, phi_, rad_, Phi_, z_);
+  SphToCyl(r_, theta_, phi_, rad_, Phi_, z_);
+  den = DenProfileCyl(rad_, Phi_, z_);
+  vel = VelProfileCyl(rad_, Phi_, z_);
   // assume R~r
-  den = DenProfileCyl(r_,phi_,z);
-  vel = VelProfileCyl(r_,phi_,z);
+  //den = DenProfileCyl(r_,phi_,z);
+  //vel = VelProfileCyl(r_,phi_,z);
 
   // compute the velocity vector in rotated frame
   vx = -vel * std::sin(phi_);
@@ -789,16 +802,16 @@ void DiskInnerX1(MeshBlock *pmb,Coordinates *pco, AthenaArray<Real> &prim, FaceF
 	  W_in = std::asin(-L_in[0] / L_in[2]); // arcsin(-L_x/L_z)
 	  GetDenVelTilted(r_gh, theta, phi, W_in, den_gh, vr, vtheta, vphi);
 
-          prim(IDN,k,j,il-i) = DenProfileCyl(r_gh,phi,z_gh); // prim(IDN,k,j,il) * // den_gh;
+          prim(IDN,k,j,il-i) = den_gh; // prim(IDN,k,j,il) *
 	     //DenProfileCyl(r_gh,phi,z_gh)/DenProfileCyl(r_ac,phi,z_ac); // assume r~R
 	  // vel = VelProfileCyl(rad,phi,z);
           if (pmb->porb->orbital_advection_defined)
             vel -= vK(pmb->porb, pco->x1v(il-i), pco->x2v(j), pco->x3v(k));
-          prim(IM1,k,j,il-i) = prim(IM1,k,j,il) * std::pow(r_gh/r_ac,-0.5); // VrProfileCyl(r_gh,phi,z_gh);
+          prim(IM1,k,j,il-i) = prim(IM1,k,j,il) * std::pow(r_gh/r_ac,0.5); // VrProfileCyl(r_gh,phi,z_gh);
 		// VrProfileCyl(r_gh,phi,z_gh)/VrProfileCyl(r_ac,phi,z_ac); // assume r~R
 	  //prim(IM1,k,j,il-i) = prim(IM1,k,j,il) * std::pow(rad_gh/rad,0.5); // v_r
-          prim(IM2,k,j,il-i) = prim(IM2,k,j,il) * std::pow(r_gh/r_ac,-0.5); // 0.0;  // v_theta
-          prim(IM3,k,j,il-i) = prim(IM3,k,j,il) * std::pow(r_gh/r_ac,-0.5); // v_phi; assume r~R
+          prim(IM2,k,j,il-i) = vtheta; // prim(IM2,k,j,il) * std::pow(r_gh/r_ac,-0.5); // 0.0;  // v_theta
+          prim(IM3,k,j,il-i) = vphi; // prim(IM3,k,j,il) * std::pow(r_gh/r_ac,-0.5); // v_phi; assume r~R
           if (NON_BAROTROPIC_EOS)
             prim(IEN,k,j,il-i) = PoverR(rad, phi, z)*prim(IDN,k,j,il-i);
         }
@@ -821,6 +834,7 @@ void DiskOuterX1(MeshBlock *pmb,Coordinates *pco, AthenaArray<Real> &prim, FaceF
   Real den_gh, vr, vtheta, vphi; // used in spherical case
   Real vK_gh; // Keplerian velocity in ghost cell
   Real z_over_H; // z/H (used if coord sys is spherical)
+  Real r_ac;
   OrbitalVelocityFunc &vK = pmb->porb->OrbitalVelocity;
   if (std::strcmp(COORDINATE_SYSTEM, "cylindrical") == 0) {
     for (int k=kl; k<=ku; ++k) {
@@ -854,7 +868,7 @@ void DiskOuterX1(MeshBlock *pmb,Coordinates *pco, AthenaArray<Real> &prim, FaceF
         theta = pco->x2v(j);
 	for (int i=1; i<=ngh; ++i) {
           //GetCylCoord(pco,rad_gh,phi,z_gh,iu+i,j,k);
-          //r = pco->x1v(iu); 
+          r_ac = pco->x1v(iu); 
           //rad_gh = std::sqrt(r_gh*r_gh - z_gh*z_gh);
           r_gh = pco->x1v(iu+i);
           GetZfromL(r_gh, theta, phi, L_out, z_gh);
@@ -867,7 +881,7 @@ void DiskOuterX1(MeshBlock *pmb,Coordinates *pco, AthenaArray<Real> &prim, FaceF
           if (pmb->porb->orbital_advection_defined)
             vel -= vK(pmb->porb, pco->x1v(iu+i), pco->x2v(j), pco->x3v(k));
 	  // v_r determined by steady-state accretion, not GetDenVelTilted
-          prim(IM1,k,j,iu+i) = VrProfileCyl(r_gh,phi,z_gh); // v_r; assume R~r
+          prim(IM1,k,j,iu+i) = prim(IM1,k,j,iu) * std::pow(r_gh/r_ac,0.5); // VrProfileCyl(r_gh,phi,z_gh); // v_r; assume R~r
           //vK_gh = std::sqrt(gm0/rad_gh);
 	  //z_over_H = z_gh / std::sqrt(p0_over_r0) * (vK_gh/rad_gh); // H=cs/Omega
           //prim(IM1,k,j,iu+i) = -alpha_const*p0_over_r0/vK_gh * (-3 + 4.5*SQR(z_over_H)); // v_r

@@ -24,11 +24,11 @@ src/pgen/../eos/eos.hpp(83): warning #3180: unrecognized OpenMP #pragma
   #pragma omp declare simd simdlen(SIMD_WIDTH) uniform(this,prim,cons,bcc,k,j) linear(i)
   ^
 
-src/pgen/disk_3d_tilted.cpp(392): warning #3180: unrecognized OpenMP #pragma
+src/pgen/disk_3d_tilted.cpp(396): warning #3180: unrecognized OpenMP #pragma
   	#pragma omp simd
   	^
 
-src/pgen/disk_3d_tilted.cpp(413): warning #3180: unrecognized OpenMP #pragma
+src/pgen/disk_3d_tilted.cpp(417): warning #3180: unrecognized OpenMP #pragma
   	#pragma omp simd
   	^
 
