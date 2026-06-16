@@ -800,7 +800,9 @@ void DiskInnerX1(MeshBlock *pmb,Coordinates *pco, AthenaArray<Real> &prim, FaceF
 	  GetZfromL(r_gh, theta, phi, L_in, z_gh);
           //rad_gh = std::sqrt(r_gh*r_gh - z_gh*z_gh);
 	  W_in = std::asin(-L_in[0] / L_in[2]); // arcsin(-L_x/L_z)
-	  GetDenVelTilted(r_gh, theta, phi, W_in, den_gh, vr, vtheta, vphi);
+	  //GetDenVelTilted(r_gh, theta, phi, W_in, den_gh, vr, vtheta, vphi);
+	  // debugging: set inner tilt to constant value 
+	  GetDenVelTilted(r_gh, theta, phi, W_out, den_gh, vr, vtheta, vphi);
 
           prim(IDN,k,j,il-i) = den_gh; // prim(IDN,k,j,il) *
 	     //DenProfileCyl(r_gh,phi,z_gh)/DenProfileCyl(r_ac,phi,z_ac); // assume r~R
