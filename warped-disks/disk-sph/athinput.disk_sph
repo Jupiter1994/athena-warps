@@ -9,13 +9,13 @@ problem_id  = /scratch/phn2956/disk-sph27/disk      # problem ID: basename of ou
 <output1> 
 file_type   = hdf5      # default: vtk output
 variable    = prim      # prim or cons
-dt          = 31.4      #31.4      # time increment between outputs
+dt          = 3.14      #31.4      # time increment between outputs
 #dcycle = 1              # output interval in cycles; can only use dt OR dcycle
 ghost_zones = 1         # default = false 
 
 <output2>
 file_type   = hst       # History data dump
-dt          = 3.14      # 3.14    # time increment between outputs
+dt          = .0314      # 3.14    # time increment between outputs
 
 <output3>
 file_type   = rst       # Restart data dump
@@ -24,7 +24,7 @@ dt          = 314      # time increment between outputs
 <time>
 cfl_number  = 0.3       # The Courant, Friedrichs, & Lewy (CFL) Number
 nlim        = -1        # cycle limit
-tlim        = 3140.  # 3140.      # time limit; 6280 in Jiaru's sim
+tlim        = 314.  # 3140.      # time limit; 6280 in Jiaru's sim
 integrator  = rk2 # vl2       # time integration algorithm
 xorder      = 2         # order of spatial reconstruction
 ncycle_out  = 1         # interval for stdout summary info

@@ -799,21 +799,21 @@ void DiskInnerX1(MeshBlock *pmb,Coordinates *pco, AthenaArray<Real> &prim, FaceF
 	
 	  GetZfromL(r_gh, theta, phi, L_in, z_gh);
           //rad_gh = std::sqrt(r_gh*r_gh - z_gh*z_gh);
-	  W_in = std::asin(-L_in[0] / L_in[2]); // arcsin(-L_x/L_z)
+	  //W_in = std::asin(-L_in[0] / L_in[2]); // arcsin(-L_x/L_z)
 	  //GetDenVelTilted(r_gh, theta, phi, W_in, den_gh, vr, vtheta, vphi);
 	  // debugging: set inner tilt to constant value 
-	  GetDenVelTilted(r_gh, theta, phi, W_out, den_gh, vr, vtheta, vphi);
+	  //GetDenVelTilted(r_gh, theta, phi, W_out, den_gh, vr, vtheta, vphi);
 
-          prim(IDN,k,j,il-i) = den_gh; // prim(IDN,k,j,il) *
-	     //DenProfileCyl(r_gh,phi,z_gh)/DenProfileCyl(r_ac,phi,z_ac); // assume r~R
+          prim(IDN,k,j,il-i) = prim(IDN,k,j,il) * // den_gh;
+	     DenProfileCyl(r_gh,phi,z_gh)/DenProfileCyl(r_ac,phi,z_ac); // assume r~R
 	  // vel = VelProfileCyl(rad,phi,z);
           if (pmb->porb->orbital_advection_defined)
             vel -= vK(pmb->porb, pco->x1v(il-i), pco->x2v(j), pco->x3v(k));
-          prim(IM1,k,j,il-i) = prim(IM1,k,j,il) * std::pow(r_gh/r_ac,0.5); // VrProfileCyl(r_gh,phi,z_gh);
+          prim(IM1,k,j,il-i) = prim(IM1,k,j,il) * std::pow(r_gh/r_ac,-0.5); // VrProfileCyl(r_gh,phi,z_gh);
 		// VrProfileCyl(r_gh,phi,z_gh)/VrProfileCyl(r_ac,phi,z_ac); // assume r~R
 	  //prim(IM1,k,j,il-i) = prim(IM1,k,j,il) * std::pow(rad_gh/rad,0.5); // v_r
-          prim(IM2,k,j,il-i) = vtheta; // prim(IM2,k,j,il) * std::pow(r_gh/r_ac,-0.5); // 0.0;  // v_theta
-          prim(IM3,k,j,il-i) = vphi; // prim(IM3,k,j,il) * std::pow(r_gh/r_ac,-0.5); // v_phi; assume r~R
+          prim(IM2,k,j,il-i) = prim(IM2,k,j,il) * std::pow(r_gh/r_ac,-0.5); // 0.0;  // v_theta
+          prim(IM3,k,j,il-i) = prim(IM3,k,j,il) * std::pow(r_gh/r_ac,-0.5); // v_phi; assume r~R
           if (NON_BAROTROPIC_EOS)
             prim(IEN,k,j,il-i) = PoverR(rad, phi, z)*prim(IDN,k,j,il-i);
         }
@@ -883,7 +883,7 @@ void DiskOuterX1(MeshBlock *pmb,Coordinates *pco, AthenaArray<Real> &prim, FaceF
           if (pmb->porb->orbital_advection_defined)
             vel -= vK(pmb->porb, pco->x1v(iu+i), pco->x2v(j), pco->x3v(k));
 	  // v_r determined by steady-state accretion, not GetDenVelTilted
-          prim(IM1,k,j,iu+i) = prim(IM1,k,j,iu) * std::pow(r_gh/r_ac,0.5); // VrProfileCyl(r_gh,phi,z_gh); // v_r; assume R~r
+          prim(IM1,k,j,iu+i) = VrProfileCyl(r_gh,phi,z_gh); // prim(IM1,k,j,iu) * std::pow(r_gh/r_ac,0.5); // v_r; assume R~r
           //vK_gh = std::sqrt(gm0/rad_gh);
 	  //z_over_H = z_gh / std::sqrt(p0_over_r0) * (vK_gh/rad_gh); // H=cs/Omega
           //prim(IM1,k,j,iu+i) = -alpha_const*p0_over_r0/vK_gh * (-3 + 4.5*SQR(z_over_H)); // v_r
