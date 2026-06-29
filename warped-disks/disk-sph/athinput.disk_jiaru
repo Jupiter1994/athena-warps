@@ -4,13 +4,13 @@ reference =
 configure = --prob=disk --coord=spherical_polar
 
 <job>
-problem_id  = /scratch/phn2956/disk-jiaru1/disk      # problem ID: basename of output filenames
+problem_id  = /scratch/phn2956/disk-jiaru5/disk      # problem ID: basename of output filenames
 
 <output1>
 file_type   = hdf5       # VTK data dump
 variable    = prim      #
 dt          = 3.14 # 6.28    # time increment between outputs
-#dcycle      = 10
+#dcycle      = 1
 ghost_zones = 1
 orbital_system = false     # false: default
 
@@ -25,13 +25,13 @@ dt          = 62.8      # time increment between outputs
 <time>
 cfl_number  = 0.3       # The Courant, Friedrichs, & Lewy (CFL) Number
 nlim        = -1        # cycle limit
-tlim        = 314 # 6280   # time limit
+tlim        = 628 # 6280   # time limit
 integrator  = rk2       # time integration algorithm
 xorder      = 2         # order of spatial reconstruction
 ncycle_out  = 1         # interval for stdout summary info
 
 <mesh>
-nx1         = 20 # 256            # Number of zones in X1-direction
+nx1         = 128  # 40          # Number of zones in X1-direction
 x1min       = 0.5            # minimum value of X1
 x1max       = 3              # maximum value of X1
 ix1_bc      = user           # Inner-X1 boundary condition flag
@@ -39,13 +39,13 @@ ox1_bc      = user           # Outer-X1 boundary condition flag
 #x1rat      = 1.01           # non-uniform grid ratio
 
 # pi/2 = 1.5708
-nx2         = 48 # 256            # Number of zones in X2-direction
+nx2         = 128 # 48            # Number of zones in X2-direction
 x2min       = 1.3308         # minimum value of X2
 x2max       = 1.8108         # maximum value of X2
 ix2_bc      = reflecting     # Inner-X2 boundary condition flag
 ox2_bc      = reflecting     # Outer-X2 boundary condition flag
 
-nx3         = 10 # 260               # Number of zones in X3-direction
+nx3         = 130 # 40               # Number of zones in X3-direction
 x3min       = 0.0               # minimum value of X3
 x3max       = 6.283185307179586 # maximum value of X3
 ix3_bc      = periodic          # Inner-X3 boundary condition flag
@@ -53,8 +53,8 @@ ox3_bc      = periodic          # Outer-X3 boundary condition flag
 
 
 <meshblock>
-nx1        = 10         # Number of zones in X1-direction per MeshBlock
-nx2        = 12          # Number of zones in X2-direction per MeshBlock
+nx1        = 64         # Number of zones in X1-direction per MeshBlock
+nx2        = 32          # Number of zones in X2-direction per MeshBlock
 nx3        = 10         # Number of zones in X3-direction per MeshBlock
 
 <hydro>
@@ -81,7 +81,7 @@ xi_2        = 0.0
 W_in        = 0.0
 W_out       = 0.025 # 0.03333
 alpha_0     = 0.001
-depth_gap   = 19.0
+depth_gap   = 1.1 # 1.0 (no gap)
 r_gap_a     = 1.0
 r_gap_b     = 2.0
 del_a       = 0.1
@@ -91,5 +91,3 @@ dpdt        = 0.0
 time_fix    = 9999999
 nu_iso      = 0.1      # isotropic viscosity coefficient
 
-# file paths
-#ur1_profile_file = "/projects/b1094/jding/athena/ur1_profile_var_alpha.dat"
