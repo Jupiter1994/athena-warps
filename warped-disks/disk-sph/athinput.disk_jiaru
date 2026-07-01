@@ -53,7 +53,7 @@ ox3_bc      = periodic          # Outer-X3 boundary condition flag
 
 
 <meshblock>
-nx1        = 64         # Number of zones in X1-direction per MeshBlock
+nx1        = 32         # Number of zones in X1-direction per MeshBlock
 nx2        = 32          # Number of zones in X2-direction per MeshBlock
 nx3        = 10         # Number of zones in X3-direction per MeshBlock
 
