@@ -760,6 +760,7 @@ void DiskInnerX1(MeshBlock *pmb,Coordinates *pco, AthenaArray<Real> &prim, FaceF
   Real den_gh, vr, vtheta, vphi; // background den, vel at ghost cell (spherical case)
   Real W_in; // tilt at R_in
   Real vx, vy, vz; // velocity Cartesian components in sim frame
+  Real vr_, vtheta_, vphi_; // velocity spherical components in disk/midplane frame
   OrbitalVelocityFunc &vK = pmb->porb->OrbitalVelocity;
 
   // printf("ngh= %1d \n", ngh);
@@ -809,13 +810,8 @@ void DiskInnerX1(MeshBlock *pmb,Coordinates *pco, AthenaArray<Real> &prim, FaceF
 	  vtheta = prim(IM2,k,j,il);
 	  vphi = prim(IM3,k,j,il);
 	  VelSphToCart(theta, phi, vr, vtheta, vphi, vx, vy, vz);
-	  RotateAroundY(vx, vy, vz, -W_in);
-	  if (std::cos(phi) > 0) { // x > 0
-  	      VelCartToSph(theta+W_in, phi, vx, vy, vz, vr, vtheta, vphi);
-	  }
-	  else {
-	      VelCartToSph(theta-W_in, phi, vx, vy, vz, vr, vtheta, vphi);
-          }
+	  RotateAroundY(vx, vy, vz, -W_in); // rotate into midplane (theta=pi/2)
+  	  VelCartToSph(M_PI_2, phi, vx, vy, vz, vr, vtheta, vphi);
 
           prim(IDN,k,j,il-i) = prim(IDN,k,j,il) * // den_gh;
 	     DenProfileCyl(r_gh,phi,z_gh)/DenProfileCyl(r_ac,phi,z_ac); // assume r~R
