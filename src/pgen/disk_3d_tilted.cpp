@@ -805,24 +805,33 @@ void DiskInnerX1(MeshBlock *pmb,Coordinates *pco, AthenaArray<Real> &prim, FaceF
 	  // debugging: set inner tilt to constant value 
 	  //GetDenVelTilted(r_gh, theta, phi, W_out, den_gh, vr, vtheta, vphi);
 
-	  // get values of vtheta + vphi in midplane frame for extrapolation purposes
+	  // get extrapolated values of velocity components
 	  vr = prim(IM1,k,j,il);
 	  vtheta = prim(IM2,k,j,il);
 	  vphi = prim(IM3,k,j,il);
 	  VelSphToCart(theta, phi, vr, vtheta, vphi, vx, vy, vz);
-	  RotateAroundY(vx, vy, vz, -W_in); // rotate into midplane (theta=pi/2)
-  	  VelCartToSph(M_PI_2, phi, vx, vy, vz, vr, vtheta, vphi);
+	  // rotate active velocity vector into midplane (theta=pi/2)
+	  RotateAroundY(vx, vy, vz, -W_in);
+  	  VelCartToSph(M_PI_2, phi, vx, vy, vz, vr_, vtheta_, vphi_);
+	  // extrapolate ghost cell values in midplane frame
+	  vr_ *= std::pow(r_gh/r_ac,-0.5);
+          vtheta_ *= std::pow(r_gh/r_ac,-0.5);
+	  vphi_ *= std::pow(r_gh/r_ac,-0.5);
+	  // rotate ghost velocity vector to sim frame
+	  VelSphToCart(M_PI_2, phi, vr_, vtheta_, vphi_, vx, vy, vz);
+	  RotateAroundY(vx, vy, vz, W_in);
+	  VelCartToSph(theta, phi, vx, vy, vz, vr_, vtheta_, vphi_); 
 
           prim(IDN,k,j,il-i) = prim(IDN,k,j,il) * // den_gh;
 	     DenProfileCyl(r_gh,phi,z_gh)/DenProfileCyl(r_ac,phi,z_ac); // assume r~R
 	  // vel = VelProfileCyl(rad,phi,z);
           if (pmb->porb->orbital_advection_defined)
             vel -= vK(pmb->porb, pco->x1v(il-i), pco->x2v(j), pco->x3v(k));
-          prim(IM1,k,j,il-i) = prim(IM1,k,j,il) * std::pow(r_gh/r_ac,-0.5); // VrProfileCyl(r_gh,phi,z_gh);
+          //prim(IM1,k,j,il-i) = prim(IM1,k,j,il) * std::pow(r_gh/r_ac,-0.5); // VrProfileCyl(r_gh,phi,z_gh);
 		// VrProfileCyl(r_gh,phi,z_gh)/VrProfileCyl(r_ac,phi,z_ac); // assume r~R
-	  //prim(IM1,k,j,il-i) = prim(IM1,k,j,il) * std::pow(rad_gh/rad,0.5); // v_r
-          prim(IM2,k,j,il-i) = vtheta * std::pow(r_gh/r_ac,-0.5); // 0.0;  // v_theta
-          prim(IM3,k,j,il-i) = vphi * std::pow(r_gh/r_ac,-0.5); // v_phi; assume r~R
+	  prim(IM1,k,j,il-i) = vr_;
+          prim(IM2,k,j,il-i) = vtheta_; // vtheta * std::pow(r_gh/r_ac,-0.5); // 0.0;  // v_theta
+          prim(IM3,k,j,il-i) = vphi_; // vphi * std::pow(r_gh/r_ac,-0.5); // v_phi; assume r~R
           if (NON_BAROTROPIC_EOS)
             prim(IEN,k,j,il-i) = PoverR(rad, phi, z)*prim(IDN,k,j,il-i);
         }
