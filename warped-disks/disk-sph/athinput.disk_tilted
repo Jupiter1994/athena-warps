@@ -4,7 +4,7 @@ reference =
 configure = --prob=disk --coord=spherical_polar
 
 <job>
-problem_id  = /scratch/phn2956/disk-tilted25/disk      # problem ID: basename of output filenames
+problem_id  = /scratch/phn2956/disk-tilted26/disk      # problem ID: basename of output filenames
 
 <output1> 
 file_type   = hdf5      # default: vtk output
@@ -38,8 +38,8 @@ ox1_bc      = user      # Outer-X1 boundary condition flag
 
 nx2         = 128 # 32        # Number of zones in X2-direction
 # theta half-width = 5c_s = 0.25; pi/2 = 1.5708; extend both limits by W_out
-x2min       = 1.1208    # 1.3208    # minimum value of X2
-x2max       = 2.0208    # 1.8208    # maximum value of X2
+x2min       = 1.2808    # 1.3208    # minimum value of X2
+x2max       = 1.8608    # 1.8208    # maximum value of X2
 ix2_bc      = reflecting      # Inner-X2 boundary condition flag
 ox2_bc      = reflecting      # Outer-X2 boundary condition flag
 
@@ -78,7 +78,7 @@ r_2         = 3.0
 xi_1        = 0.0
 xi_2        = 0.0
 # W_in        = 0.0 # should equal W_out for a flat disk
-W_out       = 0.2 # 0.2 # note: I rotate disk around the y-axis in +z direction
+W_out       = 0.04 # 0.2 # note: I rotate disk around the y-axis in +z direction
 # alpha_0     = 0.001
 alpha_const = 0.2 # added 2/19/26
 

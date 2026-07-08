@@ -802,28 +802,39 @@ void DiskInnerX1(MeshBlock *pmb,Coordinates *pco, AthenaArray<Real> &prim, FaceF
           //rad_gh = std::sqrt(r_gh*r_gh - z_gh*z_gh);
 	  W_in = std::asin(-L_in[0] / L_in[2]); // arcsin(-L_x/L_z)
 	  //GetDenVelTilted(r_gh, theta, phi, W_in, den_gh, vr, vtheta, vphi);
-	  // debugging: set inner tilt to constant value 
-	  //GetDenVelTilted(r_gh, theta, phi, W_out, den_gh, vr, vtheta, vphi);
+	  // debugging: set inner den to constant value (v_i's will get overwitten) 
+	  GetDenVelTilted(r_gh, theta, phi, W_out, den_gh, vr, vtheta, vphi);
 
 	  // get extrapolated values of velocity components
 	  vr = prim(IM1,k,j,il);
 	  vtheta = prim(IM2,k,j,il);
 	  vphi = prim(IM3,k,j,il);
 	  VelSphToCart(theta, phi, vr, vtheta, vphi, vx, vy, vz);
-	  // rotate active velocity vector into midplane (theta=pi/2)
+	  // rotate active velocity vector into midplane frame
 	  RotateAroundY(vx, vy, vz, -W_in);
-  	  VelCartToSph(M_PI_2, phi, vx, vy, vz, vr_, vtheta_, vphi_);
+	  if (std::cos(phi) > 0) { // x > 0
+              // eg, theta=70 deg rotated by -10 deg goes to theta=80 deg
+	      VelCartToSph(theta+W_in, phi, vx, vy, vz, vr_, vtheta_, vphi_);
+	  }
+	  else { // x < 0
+	      VelCartToSph(theta-W_in, phi, vx, vy, vz, vr_, vtheta_, vphi_);
+          } 
 	  // extrapolate ghost cell values in midplane frame
 	  vr_ *= std::pow(r_gh/r_ac,-0.5);
           vtheta_ *= std::pow(r_gh/r_ac,-0.5);
 	  vphi_ *= std::pow(r_gh/r_ac,-0.5);
 	  // rotate ghost velocity vector to sim frame
-	  VelSphToCart(M_PI_2, phi, vr_, vtheta_, vphi_, vx, vy, vz);
+	  if (std::cos(phi) > 0) { // x > 0
+              VelSphToCart(theta+W_in, phi, vr_, vtheta_, vphi_, vx, vy, vz);
+	  }
+          else { // x < 0
+              VelSphToCart(theta-W_in, phi, vr_, vtheta_, vphi_, vx, vy, vz);
+	  }
 	  RotateAroundY(vx, vy, vz, W_in);
 	  VelCartToSph(theta, phi, vx, vy, vz, vr_, vtheta_, vphi_); 
 
-          prim(IDN,k,j,il-i) = prim(IDN,k,j,il) * // den_gh;
-	     DenProfileCyl(r_gh,phi,z_gh)/DenProfileCyl(r_ac,phi,z_ac); // assume r~R
+          prim(IDN,k,j,il-i) = den_gh; // prim(IDN,k,j,il) *
+	     // DenProfileCyl(r_gh,phi,z_gh)/DenProfileCyl(r_ac,phi,z_ac); // assume r~R
 	  // vel = VelProfileCyl(rad,phi,z);
           if (pmb->porb->orbital_advection_defined)
             vel -= vK(pmb->porb, pco->x1v(il-i), pco->x2v(j), pco->x3v(k));
