@@ -63,6 +63,7 @@ Real R_gap, Delta_gap, depth_gap; // gapped density profile parameters
 Real dfloor;
 Real Omega0;
 Real alpha_const; // alpha viscosity parameter
+Real r_in, r_out; // inner and outer radii of disk
 Real W_out; // outer inclination of disk
 // variables used for calculating Lhat
 Real N_mbs; // (global) number of MeshBlocks in the sim
@@ -132,7 +133,11 @@ void Mesh::InitUserMeshData(ParameterInput *pin) {
   dfloor=pin->GetOrAddReal("hydro","dfloor",(1024*(float_min)));
 
   Omega0 = pin->GetOrAddReal("orbital_advection","Omega0",0.0);
- 
+
+  // inner and outer disk radius
+  r_in = pin->GetOrAddReal("problem", "r_in", 0.5);
+  r_out = pin->GetOrAddReal("problem", "r_out", 2.0);
+
   // variables for setting boundary conditions
   W_out = pin->GetOrAddReal("problem", "W_out", 0.0);
   L_in[0] = -std::sin(W_out);
@@ -195,7 +200,8 @@ void MeshBlock::ProblemGenerator(ParameterInput *pin) {
   Real vr(0.0), vtheta(0.0), vphi(0.0); // v's spherical components
   Real r, theta, phi;
   Real gap_R; // density gap profile
-  
+  Real W_in, W_r; // initial tilt at r_in and arbitrary radius r, respectively
+
   OrbitalVelocityFunc &vK = porb->OrbitalVelocity;
   //  Initialize density and momenta
   for (int k=ks; k<=ke; ++k) {
@@ -211,20 +217,24 @@ void MeshBlock::ProblemGenerator(ParameterInput *pin) {
 	//den = DenProfileCyl(rad,phi,z) / gap_R; // apply gap profile
         //vel = VelProfileCyl(rad,phi,z);
 
+	W_in = 0;
+	// set tilt at this radius
+	W_r = (W_out-W_in)/(r_out-r_in) * (r-r_in) + W_in; // linear W(r)
+	// W_r = W_out; // flat, inclined plate
 	// tilted version
 	if (std::cos(phi) > 0) { // x > 0
-	    // eg, midplane at theta=80 if W_out=10 deg
-	    gap_R = gapProfile(r,phi,r*cos(theta+W_out)); 
+	    // eg, midplane at theta=80 if W_r=10 deg
+	    gap_R = gapProfile(r,phi,r*cos(theta+W_r)); 
 	    // debugging vphi calculation for i=0
-	    vel = VelProfileCyl(r,phi,r*cos(theta+W_out));
+	    vel = VelProfileCyl(r,phi,r*cos(theta+W_r));
 	} else {
-	    // eg, midplane at theta=100 if W_out=10
-	    gap_R = gapProfile(r,phi,r*cos(theta-W_out));
+	    // eg, midplane at theta=100 if W_r=10
+	    gap_R = gapProfile(r,phi,r*cos(theta-W_r));
 	    // debugging
-	    vel = VelProfileCyl(r,phi,r*cos(theta-W_out));
+	    vel = VelProfileCyl(r,phi,r*cos(theta-W_r));
         }
 	// get background values of density and velocity
-        GetDenVelTilted(r, theta, phi, W_out, den, vr, vtheta, vphi);
+        GetDenVelTilted(r, theta, phi, W_r, den, vr, vtheta, vphi);
 	den /= gap_R; // apply gap profile
 
 	if (porb->orbital_advection_defined)

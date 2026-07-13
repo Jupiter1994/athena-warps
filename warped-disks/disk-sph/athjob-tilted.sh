@@ -2,10 +2,10 @@
 #SBATCH --account=b1094 ## Required: your allocation/account name, i.e. eXXXX, pXXXX or bXXXX
 #SBATCH --partition=ciera-std ## Required: (buyin, short, normal, long, gengpu, genhimem, etc)
 #SBATCH --time=2:00:00 ## Required: How long will the job need to run (remember different partitions have restrictions on this parameter)
-#SBATCH --nodes=8 ## how many computers/nodes do you need (no default)
-#SBATCH --ntasks-per-node=13 ## how many cpus or processors do you need on per computer/node (default value 1)
+#SBATCH --nodes=2 ## how many computers/nodes do you need (no default)
+#SBATCH --ntasks-per-node=52 ## how many cpus or processors do you need on per computer/node (default value 1)
 #SBATCH --mem=3G ## how much RAM do you need per computer/node (this affects your FairShare score so be careful to not ask for more than you need))
-#SBATCH --job-name=disk-tilted27 ## When you run squeue -u 
+#SBATCH --job-name=disk-tilted28 ## When you run squeue -u 
 #SBATCH --output=%J.out
 #SBATCH --error=%J.err
 #SBATCH --mail-type=ALL
