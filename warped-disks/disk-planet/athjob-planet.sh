@@ -4,8 +4,8 @@
 #SBATCH --time=2:00:00 ## Required: How long will the job need to run (remember different partitions have restrictions on this parameter)
 #SBATCH --nodes=2 ## how many computers/nodes do you need (no default)
 #SBATCH --ntasks-per-node=52 ## how many cpus or processors do you need on per computer/node (default value 1)
-#SBATCH --mem=12G ## how much RAM do you need per computer/node (this affects your FairShare score so be careful to not ask for more than you need))
-#SBATCH --job-name=disk-tilted28 ## When you run squeue -u 
+#SBATCH --mem=6G ## how much RAM do you need per computer/node (this affects your FairShare score so be careful to not ask for more than you need))
+#SBATCH --job-name=disk-planet1 ## When you run squeue -u 
 #SBATCH --output=%J.out
 #SBATCH --error=%J.err
 #SBATCH --mail-type=ALL
@@ -15,5 +15,4 @@ module load intel/2024.0
 module load mpi/intel-mpi-5.1.3.258
 module load hdf5/1.10.7-openmpi-intel-2021.4.0
 
-mpiexec -n ${SLURM_NTASKS} ../../bin/athena -i athinput.disk_tilted
-#mpiexec -n 416 ./athena -r disk.00025.rst -i athinput.disk_sph
+mpiexec -n ${SLURM_NTASKS} ../../bin/athena -i athinput.disk_planet
