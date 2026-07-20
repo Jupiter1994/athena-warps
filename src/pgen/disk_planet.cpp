@@ -9,6 +9,9 @@
 //! With this code, our goal is to investigate how a planet at zero inclination affects
 //! a flat, inclined disk. 
 
+//! To write the source term function, I referred to Sudat Khan's code here:
+//! https://github.com/SudatKhan/athena_simulations/blob/main/planet_disk_interaction.cpp
+
 // C headers
 
 // C++ headers
@@ -496,6 +499,9 @@ void PlanetPotential(MeshBlock *pmb, const Real time, const Real dt,
     xp = r0*cos(phip);
     yp = r0*sin(phip);
 
+    // change planet's mass with time
+    Real qt = std::min(time/200 * q, q); 
+
     // apply gravity at each cell in domain
     for (int k = pmb->ks; k <= pmb->ke; ++k) {
         phi = pmb->pcoord->x3v(k);
@@ -506,7 +512,7 @@ void PlanetPotential(MeshBlock *pmb, const Real time, const Real dt,
 
 	       SphToCart(r, theta, phi, x, y, z);
 	       AddGOneObject(x, y, z, xp, yp,
-                	gx, gy, gz, b, q);
+                	gx, gy, gz, b, qt);
 	       // convert the acceleration vector to spherical coords
 	       VelCartToSph(theta, phi, gx, gy, gz, gr, gtheta, gphi);
 
