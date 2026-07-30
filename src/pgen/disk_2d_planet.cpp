@@ -243,6 +243,8 @@ void Mesh::UserWorkInLoop() {
 	    vr_avg += w(IM1,k,j,i) / N_phi;
 	  }
 	  mesh_vrs_avg[i] = vr_avg; 
+	  //printf("ju-th IM1 (inner wkz) = %.1e \n", w(IM1,k,ju,i));
+	  //printf("mesh_vrs_avg[i] (inner wkz) = %.1e \n", mesh_vrs_avg[i]);
 	}
 
 	// calculate vr_avg's in outer wave-killing zone
@@ -264,6 +266,9 @@ void Mesh::UserWorkInLoop() {
   #else // if only using one core
       std::copy(mesh_vrs_avg, mesh_vrs_avg+1024, vrs_avg);
   #endif
+
+  //printf("mesh_vrs_avg[2] = %.1e \n", mesh_vrs_avg[2]);
+  //printf("vrs_avg[2] = %.1e \n", vrs_avg[2]);
 
   return; 
 }
@@ -499,7 +504,8 @@ void DiskInnerX1(MeshBlock *pmb,Coordinates *pco, AthenaArray<Real> &prim, FaceF
       for (int j=jl; j<=ju; ++j) {
 
         // after first timestep, apply wave-killing
-    	if (vrs_avg[0] != 0.) {
+    	if (vrs_avg[il] != 0.) { // vr_avg of first active cell
+	  printf("wave-killing being applied in inner wkz\n");
 	  for (int i=il; i<=iu; ++i) {
 	    r = pco->x1v(i);
 	    // exit loop once we're outside wave-killing zone
@@ -577,8 +583,9 @@ void DiskOuterX1(MeshBlock *pmb,Coordinates *pco, AthenaArray<Real> &prim, FaceF
       for (int j=jl; j<=ju; ++j) {
 
 	// after first timestep, apply wave-killing
-        if (vrs_avg[-1] != 0.) {
-          for (int i=iu; i>=il; --i) {
+        if (vrs_avg[iu] != 0.) { // vr_avg of last active cell
+          printf("wave-killing being applied in outer wkz\n");
+	  for (int i=iu; i>=il; --i) {
             r = pco->x1v(i);
             // exit loop once we're outside wave-killing zone
             if (r < r_owkz)
