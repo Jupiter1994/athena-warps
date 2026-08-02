@@ -1,0 +1,95 @@
+<comment>
+problem   = Keplerian disk in cylindrical coordinates
+reference = 
+configure = --prob=disk --coord=cylindrical
+
+<job>
+problem_id  = /scratch/phn2956/disk-2d-planet1b/disk      # problem ID: basename of output filenames
+
+<output1>
+file_type   = hdf5       # HDF5 data dump
+variable    = prim      #
+#dt          = .00314      # 1  # time increment between outputs
+dcycle = 1              # output interval in cycles; can only use dt OR dcycle
+ghost_zones = 1         # 1 == includes ghost zones in output
+
+<output2>
+file_type   = hst       # History data dump
+dt          = 0.000314    # time increment between outputs
+
+<output3>
+file_type   = rst      # Restart data dump
+dt 	    = 314     # time increment between outputs
+
+<time>
+cfl_number  = 0.3       # The Courant, Friedrichs, & Lewy (CFL) Number
+nlim        = -1        # cycle limit
+tlim        = .0314 #      # time limit
+integrator  = vl2       # time integration algorithm
+xorder      = 2         # order of spatial reconstruction
+ncycle_out  = 1         # interval for stdout summary info
+
+<mesh> # (x1,x2,x3) = (R, phi, z)
+nx1         = 128 # 200            # Number of zones in X1-direction
+x1min       = 0.5            # minimum value of X1
+x1max       = 2.0            # maximum value of X1
+ix1_bc      = user           # Inner-X1 boundary condition flag
+ox1_bc      = user           # Outer-X1 boundary condition flag
+#x1rat       = 1.0         # non-uniform grid ratio
+
+nx2         = 130 # 500            # Number of zones in X2-direction
+x2min       = 0.             # minimum value of X2
+x2max       = 6.2831853071795862   # maximum value of X2
+ix2_bc      = periodic       # Inner-X2 boundary condition flag
+ox2_bc      = periodic       # Outer-X2 boundary condition flag
+
+nx3         = 1              # Number of zones in X3-direction
+x3min       = -0.5           # minimum value of X3
+x3max       = 0.5            # maximum value of X3
+ix3_bc      = periodic       # Inner-X3 boundary condition flag
+ox3_bc      = periodic       # Outer-X3 boundary condition flag
+
+refinement  = None
+
+<meshblock>
+nx1        = 128 # 100         # Number of zones in X1-direction in one MeshBlock
+nx2        = 130 # 125          # Number of zones in X2-direction in one MeshBlock
+nx3        = 1         # Number of zones in X3-direction in one MeshBlock
+
+<hydro>
+gamma           = 1.66666667 # gamma = C_p/C_v
+iso_sound_speed = 0.05 # 0.1        # isothermal sound speed
+dfloor          = 1.e-6
+pfloor          = 1.e-9
+
+<orbital_advection>
+OAorder     = 0   # 0: w/o OA, 1: w/ OA (1st), 2: w/ OA (2nd)
+Omega0      = 0.0 # angular velocity of the system
+
+<problem>
+GM          = 1.0
+r0          = 1.0
+rho0        = 1.0
+# p0_over_r0  = 0.0025    # c^2
+# p0overr0    = 0.0025
+pslope      = 0.
+dslope      = -1.5  # exponent in density power law; -1.5 is steady state for viscous disk
+
+## params for "basic" gap profile
+R_gap = 1.0 # center of gap
+Delta_gap = 0.1 # half-width of gap
+depth_gap = 1.0 # 2.0 # depth of gap
+
+## planet parameters
+q = 0.002 # mass ratio
+b = 0.05 # 0.05 # gravitational softening radius
+
+## wave-killing zone parameters
+r_in = 0.5
+r_out = 2.0
+r_iwkz = 0.7
+r_owkz = 1.6
+
+## viscosity parameters
+alpha_const = 0.01    # viscosity parameter
+nu_iso = 0.2  # not used, but NEEDS to be nonzero for Athena++ to actually turn on viscosity

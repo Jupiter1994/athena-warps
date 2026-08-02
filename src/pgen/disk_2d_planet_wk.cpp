@@ -47,7 +47,13 @@ Real R_gap, Delta_gap, depth_gap; // gapped density profile parameters
 Real dfloor;
 Real Omega0;
 Real alpha_const; // alpha viscosity parameter
-Real q, b; // mass ratio and softening radius, respectively
+Real q, b; // planet mass ratio and softening radius, respectively
+Real r_in, r_out; // inner and outer radii of disk
+// array containing azimuthally-averaged vr at every radius; 
+// 1024 is an arbitrary size and should be > N_r
+Real vrs_avg[1024] = {}; // set all elements to 0
+// interior boundaries of inner and outer wave-killing zones
+Real r_iwkz, r_owkz;
 } // namespace
 
 // User-defined boundary conditions for disk simulations
@@ -101,9 +107,17 @@ void Mesh::InitUserMeshData(ParameterInput *pin) {
 
   // Get parameter for viscosity
   alpha_const = pin->GetReal("problem","alpha_const");
+
   // Get parameters for mass ratio, softening radius
   q = pin->GetReal("problem","q");
   b = pin->GetReal("problem","b");
+
+  // inner and outer disk radius
+  r_in = pin->GetReal("problem", "r_in");
+  r_out = pin->GetReal("problem", "r_out");
+  // interior boundaries of wave-killing zones
+  r_iwkz = pin->GetReal("problem", "r_iwkz");
+  r_owkz = pin->GetReal("problem", "r_owkz");
 
   // Get parameters of initial pressure and cooling parameters
   if (NON_BAROTROPIC_EOS) {
@@ -191,6 +205,78 @@ void MeshBlock::ProblemGenerator(ParameterInput *pin) {
   }
 
   return;
+}
+
+// At the end of each timestep, calculate the azimuthally-averaged v_r
+// at every radius within the wave-killing zones: [r_in, r_iwkz] and 
+// [r_owkz, r_out]. 
+void Mesh::UserWorkInLoop() {
+    
+    Real r;  
+    // this mesh's contribution to the global vrs_avg
+    int vrs_avg_size = sizeof(vrs_avg) / sizeof(vrs_avg[0]);
+    Real mesh_vrs_avg[vrs_avg_size] = {}; // set all elements to 0
+    int global_i; // global radial index
+    int global_N_phi; // global number of phi cells
+
+    Real mesh_N_mbs = nblocal; // number of MeshBlocks (this mesh)
+
+    // calculates this mesh's contribution to vrs_avg
+    for (int b=0; b<nblocal; ++b) {
+    	MeshBlock *pmb = my_blocks(b);
+    	// primitive variables
+    	AthenaArray<Real> &w = pmb->phydro->w;
+    	// conserved variables
+    	//AthenaArray<Real> &u = pmb->phydro->u;
+        
+	// indices of phi boundaries
+  	int jl = pmb->js, ju = pmb->je;
+	// index of z-coordinate (in 2D)
+	int k = pmb->ks; 
+	
+	global_N_phi = pmb->pmy_mesh->mesh_size.nx2;
+
+	// calculate contributions to vrs_avg in inner wave-killing zone
+	for (int i=pmb->is; i<=pmb->ie; i++) {
+	  r = pmb->pcoord->x1v(i);
+	  if (r > r_iwkz) 
+	    break;
+	  global_i = (pmb->loc.lx1 * pmb->block_size.nx1) + (i - pmb->is);
+	  for (int j=jl; j<=ju; j++) {
+	    mesh_vrs_avg[global_i] += w(IM1,k,j,i);
+	  }
+	  //printf("ju-th IM1 (inner wkz) = %.1e \n", w(IM1,k,ju,i));
+	  //printf("mesh_vrs_avg[i] (inner wkz) = %.1e \n", mesh_vrs_avg[i]);
+	}
+
+	// calculate contributions to vrs_avg in outer wave-killing zone
+        for (int i=pmb->ie; i>=pmb->is; i--) {
+          r = pmb->pcoord->x1v(i);
+          if (r < r_owkz)
+            break;
+          global_i = (pmb->loc.lx1 * pmb->block_size.nx1) + (i - pmb->is);
+	  for (int j=jl; j<=ju; j++) {
+            mesh_vrs_avg[global_i] += w(IM1,k,j,i);
+          }
+        }
+  }
+
+  // calculate global vrs_avg and send to all cores/processes
+  #ifdef MPI_PARALLEL
+      MPI_Allreduce(&mesh_vrs_avg, &vrs_avg, vrs_avg_size, \
+		      MPI_ATHENA_REAL, MPI_SUM, MPI_COMM_WORLD);
+  #else // if only using one core
+      std::copy(mesh_vrs_avg, mesh_vrs_avg+vrs_avg_size, vrs_avg);
+  #endif
+
+  // take azimuthal average of vr
+  for (int idx = 0; idx < vrs_avg_size; idx++) {
+      vrs_avg[idx] /= global_N_phi;
+  }
+  //printf("mesh_vrs_avg[2] = %.1e \n", mesh_vrs_avg[2]);
+  //printf("vrs_avg[2] = %.1e \n", vrs_avg[2]);
+
+  return; 
 }
 
 //----------------------------------------------------------------------------------------
@@ -319,6 +405,26 @@ void PlanetPotential(MeshBlock *pmb, const Real time, const Real dt,
     return;
 }
 
+
+namespace {
+
+// Given radius r, return R(r) (as defined in Eq. 59 in Dempsey, Lee, & Lithwick 2020).
+// This function is 1 at the domain boundaries, 0 at the interior wave-killing zone
+// boundaries, and 0 everywhere else.
+Real R_wavekill(Real r) {
+
+    Real R_r = 0.;
+
+    if (r >= r_in and r <= r_iwkz)
+        R_r = SQR(r_iwkz - r) / SQR(r_iwkz - r_in);
+    else if (r >= r_owkz and r <= r_out)
+	R_r = SQR(r - r_owkz) / SQR(r_out - r_owkz);
+
+    return R_r;
+}
+
+} // namespace for wave-killing helper functions
+
 namespace {
 //----------------------------------------------------------------------------------------
 //! transform to cylindrical coordinate
@@ -395,14 +501,37 @@ void DiskInnerX1(MeshBlock *pmb,Coordinates *pco, AthenaArray<Real> &prim, FaceF
   Real vel;
   Real rad_gh, z_gh; // cylindrical radius and height at ghost cell
   Real r, r_gh; // spherical radii of last active and ghost cells, respectively
+  Real vr; // radial velocity at a given radius (used for wave-killing)
+  Real tau; // local damping timescale for wave-killing
+  int global_i; // global radial index
   OrbitalVelocityFunc &vK = pmb->porb->OrbitalVelocity;
-
-  // printf("ngh= %1d \n", ngh);
 
   if (std::strcmp(COORDINATE_SYSTEM, "cylindrical") == 0) {
     for (int k=kl; k<=ku; ++k) {
       for (int j=jl; j<=ju; ++j) {
-        for (int i=1; i<=ngh; ++i) {
+
+        // after first timestep, apply wave-killing
+    	if (vrs_avg[il] != 0.) { // vr_avg of first active cell
+	  //printf("wave-killing being applied in inner wkz\n");
+	  for (int i=il; i<=iu; ++i) {
+	    r = pco->x1v(i);
+	    // exit loop once we're outside wave-killing zone
+	    if (r > r_iwkz)
+	      break;
+	    vr = prim(IM1,k,j,i);
+	    // tau = (1/30) / Omega_K
+	    tau = (1./30) * std::pow(r/r0, 1.5) / std::pow(gm0, 0.5); 
+	    //printf("tau_%1d = %.1e \n", i, tau);
+	    global_i = i;
+	    vr += dt*(-(vr - vrs_avg[global_i]) / tau) * R_wavekill(r);  
+	    //vr += dt*(-(vr - 0.) / tau) * R_wavekill(r);
+	    //printf("vr_%1d = %.1e \n", i, vr);
+	    prim(IM1,k,j,i) = vr;
+	  }  
+    	}
+
+	// set ghost cell values
+	for (int i=1; i<=ngh; ++i) {
           GetCylCoord(pco,rad_gh,phi,z,il-i,j,k);
 	  GetCylCoord(pco,rad,phi,z,il,j,k);
           prim(IDN,k,j,il-i) = prim(IDN,k,j,il) * std::pow(rad_gh/rad,-1.5);
@@ -457,10 +586,34 @@ void DiskOuterX1(MeshBlock *pmb,Coordinates *pco, AthenaArray<Real> &prim, FaceF
   Real r, r_gh; // spherical radii of last active and ghost cells, respectively
   Real z_over_H; // z/H (used if coord sys is spherical)
   Real den, vel;
+  Real vr; // radial velocity at a given radius (used for wave-killing)
+  Real tau; // local damping timescale for wave-killing
+  int global_i; // global radial index
   OrbitalVelocityFunc &vK = pmb->porb->OrbitalVelocity;
+
   if (std::strcmp(COORDINATE_SYSTEM, "cylindrical") == 0) {
     for (int k=kl; k<=ku; ++k) {
       for (int j=jl; j<=ju; ++j) {
+
+	// after first timestep, apply wave-killing
+        if (vrs_avg[iu] != 0.) { // vr_avg of last active cell
+          //printf("wave-killing being applied in outer wkz\n");
+	  for (int i=iu; i>=il; --i) {
+            r = pco->x1v(i);
+            // exit loop once we're outside wave-killing zone
+            if (r < r_owkz)
+              break;
+            vr = prim(IM1,k,j,i);
+            // tau = (1/30) / Omega_K
+            tau = (1./30) * std::pow(r/r0, 1.5) / std::pow(gm0, 0.5);
+            global_i = i;
+            vr += dt*(-(vr - vrs_avg[global_i]) / tau) * R_wavekill(r);
+	    //vr += dt*(-(vr - 0.) / tau) * R_wavekill(r);
+	    prim(IM1,k,j,i) = vr;
+          }
+        }
+
+	// set ghost cell values
         for (int i=1; i<=ngh; ++i) {
           GetCylCoord(pco,rad_gh,phi,z,iu+i,j,k);
 	  GetCylCoord(pco,rad,phi,z,iu,j,k);
