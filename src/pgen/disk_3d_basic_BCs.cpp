@@ -155,7 +155,9 @@ void MeshBlock::ProblemGenerator(ParameterInput *pin) {
         GetCylCoord(pcoord,rad,phi,z,i,j,k); // convert to cylindrical coordinates
         // compute initial conditions in cylindrical coordinates
         den = DenProfileCyl(rad,phi,z);
-        vel = VelProfileCyl(rad,phi,z);
+        // 8/4: make the initial Sigma weird and see if the BCs can recover steady-state Sigma
+	den *= pow(rad, 2.);
+	vel = VelProfileCyl(rad,phi,z);
         if (porb->orbital_advection_defined)
           vel -= vK(porb, x1, x2, x3);
         phydro->u(IDN,k,j,i) = den;
