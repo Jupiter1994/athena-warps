@@ -49,11 +49,18 @@ Real Omega0;
 Real alpha_const; // alpha viscosity parameter
 Real q, b; // planet mass ratio and softening radius, respectively
 Real r_in, r_out; // inner and outer radii of disk
-// array containing azimuthally-averaged vr at every radius; 
-// 1024 is an arbitrary size and should be > N_r
+// arrays containing azimuthally-averaged Sigma, vr, and vphi at every 
+// radius; 1024 is an arbitrary size and should be > N_r
 Real vrs_avg[1024] = {}; // set all elements to 0
+// Sigma,vphi are damped in de Val-Borro+ 2006 but NOT Dempsey+ 2020
+Real Sigmas_avg[1024] = {};
+Real vphis_avg[1024] = {};
 // interior boundaries of inner and outer wave-killing zones
 Real r_iwkz, r_owkz;
+// coefficient on damping timescale (tau)
+Real tau_coeff;
+// if true, follows Dempsey+ 2020 in damping only vr
+bool only_damp_vr;
 } // namespace
 
 // User-defined boundary conditions for disk simulations
@@ -118,6 +125,10 @@ void Mesh::InitUserMeshData(ParameterInput *pin) {
   // interior boundaries of wave-killing zones
   r_iwkz = pin->GetReal("problem", "r_iwkz");
   r_owkz = pin->GetReal("problem", "r_owkz");
+  // coefficient on damping timescale
+  tau_coeff = pin->GetReal("problem", "tau_coeff");
+  // if true, follows Dempsey+2020 in only damping vr
+  only_damp_vr = pin->GetBoolean("problem","only_damp_vr");
 
   // Get parameters of initial pressure and cooling parameters
   if (NON_BAROTROPIC_EOS) {
@@ -216,6 +227,8 @@ void Mesh::UserWorkInLoop() {
     // this mesh's contribution to the global vrs_avg
     int vrs_avg_size = sizeof(vrs_avg) / sizeof(vrs_avg[0]);
     Real mesh_vrs_avg[vrs_avg_size] = {}; // set all elements to 0
+    Real mesh_Sigmas_avg[vrs_avg_size] = {};
+    Real mesh_vphis_avg[vrs_avg_size] = {};
     int global_i; // global radial index
     int global_N_phi; // global number of phi cells
 
@@ -244,6 +257,10 @@ void Mesh::UserWorkInLoop() {
 	  global_i = (pmb->loc.lx1 * pmb->block_size.nx1) + (i - pmb->is);
 	  for (int j=jl; j<=ju; j++) {
 	    mesh_vrs_avg[global_i] += w(IM1,k,j,i);
+	    if (!only_damp_vr) {
+	      mesh_Sigmas_avg[global_i] += w(IDN,k,j,i);
+	      mesh_vphis_avg[global_i] += w(IM2,k,j,i);
+	    }
 	  }
 	  //printf("ju-th IM1 (inner wkz) = %.1e \n", w(IM1,k,ju,i));
 	  //printf("mesh_vrs_avg[i] (inner wkz) = %.1e \n", mesh_vrs_avg[i]);
@@ -257,7 +274,11 @@ void Mesh::UserWorkInLoop() {
           global_i = (pmb->loc.lx1 * pmb->block_size.nx1) + (i - pmb->is);
 	  for (int j=jl; j<=ju; j++) {
             mesh_vrs_avg[global_i] += w(IM1,k,j,i);
-          }
+            if (!only_damp_vr) {
+              mesh_Sigmas_avg[global_i] += w(IDN,k,j,i);
+              mesh_vphis_avg[global_i] += w(IM2,k,j,i);
+            }
+	  }
         }
   }
 
@@ -265,13 +286,27 @@ void Mesh::UserWorkInLoop() {
   #ifdef MPI_PARALLEL
       MPI_Allreduce(&mesh_vrs_avg, &vrs_avg, vrs_avg_size, \
 		      MPI_ATHENA_REAL, MPI_SUM, MPI_COMM_WORLD);
+      if (!only_damp_vr) {
+        MPI_Allreduce(&mesh_Sigmas_avg, &Sigmas_avg, vrs_avg_size, \
+                      MPI_ATHENA_REAL, MPI_SUM, MPI_COMM_WORLD);
+	MPI_Allreduce(&mesh_vphis_avg, &vphis_avg, vrs_avg_size, \
+                      MPI_ATHENA_REAL, MPI_SUM, MPI_COMM_WORLD);
+      }
   #else // if only using one core
       std::copy(mesh_vrs_avg, mesh_vrs_avg+vrs_avg_size, vrs_avg);
+      if (!only_damp_vr) {
+        std::copy(mesh_Sigmas_avg, mesh_Sigmas_avg+vrs_avg_size, Sigmas_avg);
+        std::copy(mesh_vphis_avg, mesh_vphis_avg+vrs_avg_size, vphis_avg);
+      }
   #endif
 
   // take azimuthal average of vr
   for (int idx = 0; idx < vrs_avg_size; idx++) {
       vrs_avg[idx] /= global_N_phi;
+      if (!only_damp_vr) {
+        Sigmas_avg[idx] /= global_N_phi;
+        vphis_avg[idx] /= global_N_phi;
+      }
   }
   //printf("mesh_vrs_avg[2] = %.1e \n", mesh_vrs_avg[2]);
   //printf("vrs_avg[2] = %.1e \n", vrs_avg[2]);
@@ -502,6 +537,7 @@ void DiskInnerX1(MeshBlock *pmb,Coordinates *pco, AthenaArray<Real> &prim, FaceF
   Real rad_gh, z_gh; // cylindrical radius and height at ghost cell
   Real r, r_gh; // spherical radii of last active and ghost cells, respectively
   Real vr; // radial velocity at a given radius (used for wave-killing)
+  Real Sigma, vphi; // used for de Val-Borro wave-killing
   Real tau; // local damping timescale for wave-killing
   int global_i; // global radial index
   OrbitalVelocityFunc &vK = pmb->porb->OrbitalVelocity;
@@ -509,36 +545,54 @@ void DiskInnerX1(MeshBlock *pmb,Coordinates *pco, AthenaArray<Real> &prim, FaceF
   if (std::strcmp(COORDINATE_SYSTEM, "cylindrical") == 0) {
     for (int k=kl; k<=ku; ++k) {
       for (int j=jl; j<=ju; ++j) {
-
-        // after first timestep, apply wave-killing
-    	if (vrs_avg[il] != 0.) { // vr_avg of first active cell
-	  //printf("wave-killing being applied in inner wkz\n");
-	  for (int i=il; i<=iu; ++i) {
-	    r = pco->x1v(i);
-	    // exit loop once we're outside wave-killing zone
-	    if (r > r_iwkz)
-	      break;
-	    vr = prim(IM1,k,j,i);
-	    // tau = (1/30) / Omega_K
-	    tau = (1./30) * std::pow(r/r0, 1.5) / std::pow(gm0, 0.5); 
-	    //printf("tau_%1d = %.1e \n", i, tau);
-	    global_i = i;
-	    vr += dt*(-(vr - vrs_avg[global_i]) / tau) * R_wavekill(r);  
-	    //vr += dt*(-(vr - 0.) / tau) * R_wavekill(r);
-	    //printf("vr_%1d = %.1e \n", i, vr);
-	    prim(IM1,k,j,i) = vr;
-	  }  
-    	}
+	// i is the radial index local to the mb      
+	for (int i=il; i<=iu; ++i) {
+	  global_i = (pmb->loc.lx1 * pmb->block_size.nx1) + (i - il);
+	  // if vr_avg of r_in hasn't been set, skip damping
+	  if (vrs_avg[global_i] == 0.)
+	    break;
+	  r = pco->x1v(i);
+	  //printf("r_%1d = %.1e \n", global_i, r);
+	  // exit loop once we're outside wave-killing zone
+	  if (r > r_iwkz)
+	    break;
+	  vr = prim(IM1,k,j,i);
+	  // tau = tau_coeff / Omega_K
+	  tau = tau_coeff * std::pow(r/r0, 1.5) / std::pow(gm0, 0.5); 
+	  //printf("tau_%1d = %.1e \n", i, tau);
+	  vr += dt*(-(vr - vrs_avg[global_i]) / tau) * R_wavekill(r);  
+	  //vr += dt*(-(vr - 0.) / tau) * R_wavekill(r);
+	  //printf("vr_%1d = %.1e \n", i, vr);
+	  prim(IM1,k,j,i) = vr;
+	  if (!only_damp_vr) {
+	    //printf("Sigma being damped (in)\n");
+	    Sigma = prim(IDN,k,j,i);
+	    vphi = prim(IM2,k,j,i);
+	    Sigma += dt*(-(Sigma - Sigmas_avg[global_i]) / tau) * R_wavekill(r);
+	    vphi += dt*(-(vphi - vphis_avg[global_i]) / tau) * R_wavekill(r);
+	    prim(IDN,k,j,i) = Sigma;
+	    prim(IM2,k,j,i) = vphi;
+	  }
+	}  
 
 	// set ghost cell values
 	for (int i=1; i<=ngh; ++i) {
           GetCylCoord(pco,rad_gh,phi,z,il-i,j,k);
 	  GetCylCoord(pco,rad,phi,z,il,j,k);
+	  // extrapolate Sigma
           prim(IDN,k,j,il-i) = prim(IDN,k,j,il) * std::pow(rad_gh/rad,-1.5);
           vel = VelProfileCyl(rad,phi,z); // not used
           if (pmb->porb->orbital_advection_defined)
             vel -= vK(pmb->porb, pco->x1v(il-i), pco->x2v(j), pco->x3v(k));
-          prim(IM1,k,j,il-i) = prim(IM1,k,j,il) * std::pow(rad_gh/rad,0.5);
+          // extrapolate v_R
+	  prim(IM1,k,j,il-i) = prim(IM1,k,j,il) * std::pow(rad_gh/rad,0.5);
+	  
+	  bool use_solid_boundary = false;
+	  if (use_solid_boundary) {
+	    prim(IDN,k,j,il-i) = DenProfileCyl(rad_gh,phi,z);
+	    prim(IM1,k,j,il-i) = 0.;
+	  }
+
 	  // below line excludes pressure correction to v_phi
 	  prim(IM2,k,j,il-i) = prim(IM2,k,j,il) * std::pow(rad_gh/rad,-0.5);
           prim(IM3,k,j,il-i) = 0.0;
@@ -587,6 +641,7 @@ void DiskOuterX1(MeshBlock *pmb,Coordinates *pco, AthenaArray<Real> &prim, FaceF
   Real z_over_H; // z/H (used if coord sys is spherical)
   Real den, vel;
   Real vr; // radial velocity at a given radius (used for wave-killing)
+  Real Sigma, vphi; // used for de Val-Borro wave-killing
   Real tau; // local damping timescale for wave-killing
   int global_i; // global radial index
   OrbitalVelocityFunc &vK = pmb->porb->OrbitalVelocity;
@@ -594,22 +649,32 @@ void DiskOuterX1(MeshBlock *pmb,Coordinates *pco, AthenaArray<Real> &prim, FaceF
   if (std::strcmp(COORDINATE_SYSTEM, "cylindrical") == 0) {
     for (int k=kl; k<=ku; ++k) {
       for (int j=jl; j<=ju; ++j) {
+	// i is the radial index local to the meshblock
+	for (int i=iu; i>=il; --i) {
+          global_i = (pmb->loc.lx1 * pmb->block_size.nx1) + (i - il);
+          // if vr_avg of r_out hasn't been set, skip damping
+          if (vrs_avg[global_i] == 0.)
+            break;
 
-	// after first timestep, apply wave-killing
-        if (vrs_avg[iu] != 0.) { // vr_avg of last active cell
-          //printf("wave-killing being applied in outer wkz\n");
-	  for (int i=iu; i>=il; --i) {
-            r = pco->x1v(i);
-            // exit loop once we're outside wave-killing zone
-            if (r < r_owkz)
-              break;
-            vr = prim(IM1,k,j,i);
-            // tau = (1/30) / Omega_K
-            tau = (1./30) * std::pow(r/r0, 1.5) / std::pow(gm0, 0.5);
-            global_i = i;
-            vr += dt*(-(vr - vrs_avg[global_i]) / tau) * R_wavekill(r);
-	    //vr += dt*(-(vr - 0.) / tau) * R_wavekill(r);
-	    prim(IM1,k,j,i) = vr;
+	  r = pco->x1v(i);
+          //printf("r_%1d = %.1e \n", global_i, r);
+	  // exit loop once we're outside wave-killing zone
+          if (r < r_owkz)
+            break;
+          vr = prim(IM1,k,j,i);
+          // tau = tau_coeff / Omega_K
+          tau = tau_coeff * std::pow(r/r0, 1.5) / std::pow(gm0, 0.5);
+          vr += dt*(-(vr - vrs_avg[global_i]) / tau) * R_wavekill(r);
+	  //vr += dt*(-(vr - 0.) / tau) * R_wavekill(r);
+	  prim(IM1,k,j,i) = vr;
+	  if (!only_damp_vr) {
+	    //printf("Sigma being damped (out)\n");
+            Sigma = prim(IDN,k,j,i);
+            vphi = prim(IM2,k,j,i);
+            Sigma += dt*(-(Sigma - Sigmas_avg[global_i]) / tau) * R_wavekill(r);
+            vphi += dt*(-(vphi - vphis_avg[global_i]) / tau) * R_wavekill(r);
+            prim(IDN,k,j,i) = Sigma;
+            prim(IM2,k,j,i) = vphi;
           }
         }
 
