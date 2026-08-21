@@ -134,6 +134,14 @@ void Mesh::InitUserMeshData(ParameterInput *pin) {
   return;
 }
 
+// Allocate user output variables (each cell has a value for each
+// such variable).
+void MeshBlock::InitUserMeshBlockData(ParameterInput *pin)
+{
+    AllocateUserOutputVariables(2);
+    return;
+}
+
 //========================================================================================
 //! \fn void MeshBlock::ProblemGenerator(ParameterInput *pin)
 //! \brief Initializes Keplerian accretion disk.
@@ -156,7 +164,7 @@ void MeshBlock::ProblemGenerator(ParameterInput *pin) {
         // compute initial conditions in cylindrical coordinates
         den = DenProfileCyl(rad,phi,z);
         // 8/4: make the initial Sigma weird and see if the BCs can recover steady-state Sigma
-	den *= pow(rad, 2.);
+	// den *= pow(rad, 2.);
 	vel = VelProfileCyl(rad,phi,z);
         if (porb->orbital_advection_defined)
           vel -= vK(porb, x1, x2, x3);
@@ -181,6 +189,22 @@ void MeshBlock::ProblemGenerator(ParameterInput *pin) {
   }
 
   return;
+}
+
+// Calculate user-defined output variables. 
+void MeshBlock::UserWorkBeforeOutput(ParameterInput *pin)
+{
+  for(int k=ks; k<=ke; k++) {
+    for(int j=js-NGHOST; j<=je+NGHOST; j++) {
+      for(int i=is-NGHOST; i<=ie+NGHOST; i++) {
+        // mass/time in the radial direction
+	// (rate = flux * area)
+	user_out_var(0,k,j,i) = phydro->flux[X1DIR](IDN,k,j,i)*pcoord->GetFace1Area(k, j, i);
+   	// momentum1 (p_R)/time in the radial direction
+	user_out_var(1,k,j,i) = phydro->flux[X1DIR](IM1,k,j,i)*pcoord->GetFace1Area(k, j, i);
+      }
+    }
+  }
 }
 
 //----------------------------------------------------------------------------------------

@@ -1,10 +1,10 @@
 <comment>
 problem   = Keplerian disk in cylindrical coordinates
 reference = 
-configure = --prob=disk --coord=cylindrical
+configure = --prob=disk_3d_basic_BCs --coord=cylindrical
 
 <job>
-problem_id  = /scratch/phn2956/disk-cyl14/disk      # problem ID: basename of output filenames
+problem_id  = /scratch/phn2956/disk-cyl13d/disk      # problem ID: basename of output filenames
 
 <output1>
 file_type   = hdf5       # HDF5 data dump
@@ -18,25 +18,31 @@ dt          = 62.8    # time increment between outputs
 
 <output3>
 file_type   = rst      # Restart data dump
-dt 	    = 628     # time increment between outputs
+dt 	    = 314     # time increment between outputs
+
+<output4>
+file_type   = hdf5
+variable    = user_out_var  # (or ``uov''; user-defined output variables)
+dt          = 6.28
+ghost_zones = 1             # 1 == include ghost zones in output
 
 <time>
 cfl_number  = 0.3       # The Courant, Friedrichs, & Lewy (CFL) Number
 nlim        = -1        # cycle limit
-tlim        = 1300. #      # time limit
+tlim        = 628. #      # time limit
 integrator  = vl2       # time integration algorithm
 xorder      = 2         # order of spatial reconstruction
 ncycle_out  = 1         # interval for stdout summary info
 
 <mesh> # (x1,x2,x3) = (R, phi, z)
-nx1         = 40            # Number of zones in X1-direction
+nx1         = 80            # Number of zones in X1-direction
 x1min       = 0.5            # minimum value of X1
 x1max       = 2.0            # maximum value of X1
 ix1_bc      = user           # Inner-X1 boundary condition flag
 ox1_bc      = user           # Outer-X1 boundary condition flag
 x1rat       = 1.0         # non-uniform grid ratio
 
-nx2         = 20            # Number of zones in X2-direction
+nx2         = 40            # Number of zones in X2-direction
 x2min       = 0.             # minimum value of X2
 x2max       = 6.2831853071795862   # maximum value of X2
 ix2_bc      = periodic       # Inner-X2 boundary condition flag
@@ -52,7 +58,7 @@ refinement  = None
 
 <meshblock>
 nx1        = 20         # Number of zones in X1-direction in one MeshBlock
-nx2        = 10          # Number of zones in X2-direction in one MeshBlock
+nx2        = 20          # Number of zones in X2-direction in one MeshBlock
 nx3        = 1         # Number of zones in X3-direction in one MeshBlock
 
 <hydro>
@@ -73,8 +79,11 @@ rho0        = 1.0
 # p0overr0    = 0.0025
 pslope      = 0.
 dslope      = -1.5  # exponent in density power law; -1.5 is steady state for viscous disk
+
+# gap parameters
 R_gap = 1.0 # center of gap
 Delta_gap = 0.1 # half-width of gap
 depth_gap = 2.0 # depth of gap
+
 alpha_const = 0.2    # viscosity parameter
 nu_iso = 0.2  # not used, but NEEDS to be nonzero for Athena++ to actually turn on viscosity
