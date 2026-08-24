@@ -195,8 +195,8 @@ void MeshBlock::ProblemGenerator(ParameterInput *pin) {
 void MeshBlock::UserWorkBeforeOutput(ParameterInput *pin)
 {
   for(int k=ks; k<=ke; k++) {
-    for(int j=js-NGHOST; j<=je+NGHOST; j++) {
-      for(int i=is-NGHOST; i<=ie+NGHOST; i++) {
+    for(int j=js; j<=je; j++) {
+      for(int i=is; i<=ie; i++) {
         // mass/time in the radial direction
 	// (rate = flux * area)
 	user_out_var(0,k,j,i) = phydro->flux[X1DIR](IDN,k,j,i)*pcoord->GetFace1Area(k, j, i);
