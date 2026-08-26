@@ -138,7 +138,7 @@ void Mesh::InitUserMeshData(ParameterInput *pin) {
 // such variable).
 void MeshBlock::InitUserMeshBlockData(ParameterInput *pin)
 {
-    AllocateUserOutputVariables(2);
+    AllocateUserOutputVariables(1);
     return;
 }
 
@@ -201,7 +201,7 @@ void MeshBlock::UserWorkBeforeOutput(ParameterInput *pin)
 	// (rate = flux * area)
 	user_out_var(0,k,j,i) = phydro->flux[X1DIR](IDN,k,j,i)*pcoord->GetFace1Area(k, j, i);
    	// momentum1 (p_R)/time in the radial direction
-	user_out_var(1,k,j,i) = phydro->flux[X1DIR](IM1,k,j,i)*pcoord->GetFace1Area(k, j, i);
+	// user_out_var(1,k,j,i) = phydro->flux[X1DIR](IM1,k,j,i)*pcoord->GetFace1Area(k, j, i);
       }
     }
   }

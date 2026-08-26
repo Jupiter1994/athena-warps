@@ -171,6 +171,14 @@ void Mesh::InitUserMeshData(ParameterInput *pin) {
   return;
 }
 
+// Allocate user output variables (each cell has a value for each
+// such variable).
+void MeshBlock::InitUserMeshBlockData(ParameterInput *pin)
+{
+    AllocateUserOutputVariables(1);
+    return;
+}
+
 //========================================================================================
 //! \fn void MeshBlock::ProblemGenerator(ParameterInput *pin)
 //! \brief Initializes Keplerian accretion disk.
@@ -312,6 +320,22 @@ void Mesh::UserWorkInLoop() {
   //printf("vrs_avg[2] = %.1e \n", vrs_avg[2]);
 
   return; 
+}
+
+// Calculate user-defined output variables.
+void MeshBlock::UserWorkBeforeOutput(ParameterInput *pin)
+{
+  for(int k=ks; k<=ke; k++) {
+    for(int j=js; j<=je; j++) {
+      for(int i=is; i<=ie; i++) {
+        // mass/time in the radial direction
+	// (rate = flux * area)
+	user_out_var(0,k,j,i) = phydro->flux[X1DIR](IDN,k,j,i)*pcoord->GetFace1Area(k, j, i);
+   	// momentum1 (p_R)/time in the radial direction
+	// user_out_var(1,k,j,i) = phydro->flux[X1DIR](IM1,k,j,i)*pcoord->GetFace1Area(k, j, i);
+      }
+    }
+  }
 }
 
 //----------------------------------------------------------------------------------------
