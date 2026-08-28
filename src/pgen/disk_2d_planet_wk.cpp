@@ -229,8 +229,10 @@ void MeshBlock::ProblemGenerator(ParameterInput *pin) {
 // At the end of each timestep, calculate the azimuthally-averaged v_r
 // at every radius within the wave-killing zones: [r_in, r_iwkz] and 
 // [r_owkz, r_out]. 
+// Can be commented out if only damping v_r *and* damping it to 0. 
+/* 
 void Mesh::UserWorkInLoop() {
-    
+   
     Real r;  
     // this mesh's contribution to the global vrs_avg
     int vrs_avg_size = sizeof(vrs_avg) / sizeof(vrs_avg[0]);
@@ -319,8 +321,10 @@ void Mesh::UserWorkInLoop() {
   //printf("mesh_vrs_avg[2] = %.1e \n", mesh_vrs_avg[2]);
   //printf("vrs_avg[2] = %.1e \n", vrs_avg[2]);
 
-  return; 
+  return;
+
 }
+*/
 
 // Calculate user-defined output variables.
 void MeshBlock::UserWorkBeforeOutput(ParameterInput *pin)
@@ -584,8 +588,8 @@ void DiskInnerX1(MeshBlock *pmb,Coordinates *pco, AthenaArray<Real> &prim, FaceF
 	  // tau = tau_coeff / Omega_K
 	  tau = tau_coeff * std::pow(r/r0, 1.5) / std::pow(gm0, 0.5); 
 	  //printf("tau_%1d = %.1e \n", i, tau);
-	  vr += dt*(-(vr - vrs_avg[global_i]) / tau) * R_wavekill(r);  
-	  //vr += dt*(-(vr - 0.) / tau) * R_wavekill(r);
+	  // vr += dt*(-(vr - vrs_avg[global_i]) / tau) * R_wavekill(r);  
+	  vr += dt*(-(vr - 0.) / tau) * R_wavekill(r); // damp to 0
 	  //printf("vr_%1d = %.1e \n", i, vr);
 	  prim(IM1,k,j,i) = vr;
 	  if (!only_damp_vr) {
@@ -688,8 +692,8 @@ void DiskOuterX1(MeshBlock *pmb,Coordinates *pco, AthenaArray<Real> &prim, FaceF
           vr = prim(IM1,k,j,i);
           // tau = tau_coeff / Omega_K
           tau = tau_coeff * std::pow(r/r0, 1.5) / std::pow(gm0, 0.5);
-          vr += dt*(-(vr - vrs_avg[global_i]) / tau) * R_wavekill(r);
-	  //vr += dt*(-(vr - 0.) / tau) * R_wavekill(r);
+          //vr += dt*(-(vr - vrs_avg[global_i]) / tau) * R_wavekill(r);
+	  vr += dt*(-(vr - 0.) / tau) * R_wavekill(r); // damp to 0
 	  prim(IM1,k,j,i) = vr;
 	  if (!only_damp_vr) {
 	    //printf("Sigma being damped (out)\n");

@@ -71,6 +71,15 @@ Real dfloor;
 Real Omega0;
 Real alpha_const; // alpha viscosity parameter
 Real r_in, r_out; // inner and outer radii of disk
+Real q, b; // planet mass ratio and softening radius, respectively
+
+// wave-killing parameters
+// interior boundaries of inner and outer wave-killing zones
+Real r_iwkz, r_owkz;
+// coefficient on damping timescale (tau)
+Real tau_coeff;
+
+// parameters relevant to tilt profile 
 Real W_out; // outer inclination of disk
 // variables used for calculating Lhat
 Real N_mbs; // (global) number of MeshBlocks in the sim
@@ -78,7 +87,6 @@ Real N_mbs; // (global) number of MeshBlocks in the sim
 //Real M_in; // mass contained in shell at r_in
 Real L_in[3] = {0.0, 0.0, 1.0}; // ang mom vector (Cartesian) at r_in
 Real L_out[3] = {0.0, 0.0, 1.0}; // ang mom vector (Cartesian) at r_out
-Real q, b; // mass ratio and planet softening radius, respectively
 } 
 
 // User-defined boundary conditions for disk simulations
@@ -135,6 +143,16 @@ void Mesh::InitUserMeshData(ParameterInput *pin) {
   // Get parameters for mass ratio and softening radius
   q = pin->GetOrAddReal("problem","q",0.0);
   b = pin->GetReal("problem","b");
+
+  // Get parameters for wave-killing
+  // inner and outer disk radius
+  r_in = pin->GetReal("problem", "r_in");
+  r_out = pin->GetReal("problem", "r_out");
+  // interior boundaries of wave-killing zones
+  r_iwkz = pin->GetReal("problem", "r_iwkz");
+  r_owkz = pin->GetReal("problem", "r_owkz");
+  // coefficient on damping timescale
+  tau_coeff = pin->GetReal("problem", "tau_coeff");
 
   // Get parameters of initial pressure and cooling parameters
   if (NON_BAROTROPIC_EOS) {
@@ -206,6 +224,14 @@ void Mesh::InitUserMeshData(ParameterInput *pin) {
   return;
 }
 
+// Allocate user output variables (each cell has a value for each
+// such variable).
+void MeshBlock::InitUserMeshBlockData(ParameterInput *pin)
+{
+    AllocateUserOutputVariables(1);
+    return;
+}
+
 //========================================================================================
 //! \fn void MeshBlock::ProblemGenerator(ParameterInput *pin)
 //! \brief Initializes Keplerian accretion disk.
@@ -234,10 +260,10 @@ void MeshBlock::ProblemGenerator(ParameterInput *pin) {
 	//den = DenProfileCyl(rad,phi,z) / gap_R; // apply gap profile
         //vel = VelProfileCyl(rad,phi,z);
 
-	W_in = 0;
+	// W_in = 0;
 	// set tilt at this radius
-	W_r = (W_out-W_in)/(r_out-r_in) * (r-r_in) + W_in; // linear W(r)
-	// W_r = W_out; // flat, inclined plate
+	//W_r = (W_out-W_in)/(r_out-r_in) * (r-r_in) + W_in; // linear W(r)
+	W_r = W_out; // flat, inclined plate
 	// tilted version
 	if (std::cos(phi) > 0) { // x > 0
 	    // eg, midplane at theta=80 if W_r=10 deg
@@ -279,7 +305,7 @@ void MeshBlock::ProblemGenerator(ParameterInput *pin) {
   return;
 }
 
-// at the end of each cycle, calculate this mesh/core's total L_in,
+// at the end of each cycle, calculate this mesh/core's total L_in, 
 // then calculate+store the global L_in
 void Mesh::UserWorkInLoop() {
 
@@ -294,6 +320,7 @@ void Mesh::UserWorkInLoop() {
   Real dr, dtheta, dphi; // grid spacing
   Real dV; // volume element
   Real x, y, z, vx, vy, vz;
+
   // debugging variables
   //Real mesh_Ncells_in = 0; // number of cells at r_in (this mesh)
   //Real mesh_M_in = 0; // mass at r_in (this mesh)
@@ -307,9 +334,6 @@ void Mesh::UserWorkInLoop() {
     // conserved variables
     AthenaArray<Real> &u = pmb->phydro->u;
 
-    // index of r_in in r direction
-    int i = pmb->is;
-
     // debugging
     // printf("b= %d \n", b);
     //printf("mb_in= %.2f \n", pmb->pcoord->x1f(i));
@@ -318,13 +342,15 @@ void Mesh::UserWorkInLoop() {
     if (pmb->loc.lx1 != 0) {
 	continue;
     }
-
-    int jl = pmb->js, ju = pmb->je,
-        kl = pmb->ks, ku = pmb->ke;
-    
+    // index of r_in in r direction
+    int i = pmb->is;
     // r of the volume-weighted center
-    r = pmb->pcoord->x1v(i);  
-    // grid spacing (assuming uniform spacing)
+    r = pmb->pcoord->x1v(i);
+    // indices of theta boundaries
+    int jl = pmb->js, ju = pmb->je;
+    // indices of phi boundaries
+    int kl = pmb->ks, ku = pmb->ke;
+    // grid spacing at r_in (assuming uniform angular spacing)
     dr = pmb->pcoord->x1v(i+1) - r;
     dtheta = pmb->pcoord->x2v(jl+1) - pmb->pcoord->x2v(jl); 
     dphi = pmb->pcoord->x3v(kl+1) - pmb->pcoord->x3v(kl);  
@@ -404,6 +430,22 @@ void Mesh::UserWorkInLoop() {
   #endif
 
   return;
+}
+
+// Calculate user-defined output variables.
+void MeshBlock::UserWorkBeforeOutput(ParameterInput *pin)
+{
+  for(int k=ks; k<=ke; k++) {
+    for(int j=js; j<=je; j++) {
+      for(int i=is; i<=ie; i++) {
+        // mass/time in the radial direction
+	// (rate = flux * area)
+	user_out_var(0,k,j,i) = phydro->flux[X1DIR](IDN,k,j,i)*pcoord->GetFace1Area(k, j, i);
+   	// momentum1 (p_R)/time in the radial direction
+	// user_out_var(1,k,j,i) = phydro->flux[X1DIR](IM1,k,j,i)*pcoord->GetFace1Area(k, j, i);
+      }
+    }
+  }
 }
 
 //----------------------------------------------------------------------------------------
@@ -534,6 +576,26 @@ void PlanetPotential(MeshBlock *pmb, const Real time, const Real dt,
 	  "account for non-barotropic EOS (yet)");
     return;
 }
+
+
+// Helper function that "sets" the wave-killing zones.
+// Given radius r, return R(r) (as defined in Eq. 59 in Dempsey, Lee, & Lithwick 2020).
+// This function is 1 at the domain boundaries, 0 at the interior wave-killing zone
+// boundaries, and 0 everywhere else.
+Real R_wavekill(Real r) {
+
+    Real R_r = 0.;
+
+    if (r >= r_in and r <= r_iwkz)
+        R_r = SQR(r_iwkz - r) / SQR(r_iwkz - r_in);
+    else if (r >= r_owkz and r <= r_out)
+	R_r = SQR(r - r_owkz) / SQR(r_out - r_owkz);
+
+    return R_r;
+}
+
+
+
 /*
  * Saves components of L_in to history file; see Mesh::InitUserMeshData.
  */
@@ -857,11 +919,12 @@ void DiskInnerX1(MeshBlock *pmb,Coordinates *pco, AthenaArray<Real> &prim, FaceF
   Real rad_gh, z_gh; // cylindrical radius and height at ghost cell
   Real r_ac, r_gh; // radial coords of active and ghost cells
   Real z_ac; // cylindrical height at active cell
-  Real theta; // polar coordinate
+  Real r, theta; // polar coordinates
   Real den_gh, vr, vtheta, vphi; // background den, vel at ghost cell (spherical case)
   Real W_in; // tilt at R_in
   Real vx, vy, vz; // velocity Cartesian components in sim frame
   Real vr_, vtheta_, vphi_; // velocity spherical components in disk/midplane frame
+  Real tau; // local damping timescale for wave-killing
   OrbitalVelocityFunc &vK = pmb->porb->OrbitalVelocity;
 
   // printf("ngh= %1d \n", ngh);
@@ -893,6 +956,21 @@ void DiskInnerX1(MeshBlock *pmb,Coordinates *pco, AthenaArray<Real> &prim, FaceF
 	phi = pco->x3v(k);
 	GetZfromL(r_ac, theta, phi, L_in, z_ac);
 	//rad = std::sqrt(r*r - z*z); 
+	
+	// damp vr in wave-killing zones
+	for (int i=il; i<=iu; ++i) {
+	  r = pco->x1v(i);
+	  // exit loop once we're outside wave-killing zone
+	  if (r > r_iwkz)
+	    break;
+	  vr = prim(IM1,k,j,i);
+	  // tau = tau_coeff / Omega_K
+	  tau = tau_coeff * std::pow(r/r0, 1.5) / std::pow(gm0, 0.5); 
+	  vr += dt*(-(vr - 0.) / tau) * R_wavekill(r);
+	  prim(IM1,k,j,i) = vr;
+	}
+
+	// set ghost cell values
 	for (int i=1; i<=ngh; ++i) {
 	  r_gh = pco->x1v(il-i);
 
@@ -960,13 +1038,13 @@ void DiskOuterX1(MeshBlock *pmb,Coordinates *pco, AthenaArray<Real> &prim, FaceF
                  int il, int iu, int jl, int ju, int kl, int ku, int ngh) {
   Real rad(0.0), phi(0.0), z(0.0); // cyl. coords at active cell (in disk frame)
   Real rad_gh, z_gh; // cylindrical R and z at ghost cell (in disk frame)
-  Real r, r_gh; // spherical radii of last active and ghost cells, respectively
-  Real theta; // polar angle in spherical coordinates 
+  Real r_ac, r_gh; // spherical radii of last active and ghost cells, respectively
+  Real r, theta; // polar coordinates
   Real den, vel;
   Real den_gh, vr, vtheta, vphi; // used in spherical case
   Real vK_gh; // Keplerian velocity in ghost cell
   Real z_over_H; // z/H (used if coord sys is spherical)
-  Real r_ac;
+  Real tau; // local damping timescale for wave-killing
   OrbitalVelocityFunc &vK = pmb->porb->OrbitalVelocity;
   if (std::strcmp(COORDINATE_SYSTEM, "cylindrical") == 0) {
     for (int k=kl; k<=ku; ++k) {
@@ -998,6 +1076,21 @@ void DiskOuterX1(MeshBlock *pmb,Coordinates *pco, AthenaArray<Real> &prim, FaceF
       phi = pco->x3v(k);
       for (int j=jl; j<=ju; ++j) {
         theta = pco->x2v(j);
+	
+	// damp vr in wave-killing zones
+        for (int i=iu; i>=il; --i) {
+          r = pco->x1v(i);
+          // exit loop once we're outside wave-killing zone
+          if (r < r_owkz)
+            break;
+          vr = prim(IM1,k,j,i);
+          // tau = tau_coeff / Omega_K
+          tau = tau_coeff * std::pow(r/r0, 1.5) / std::pow(gm0, 0.5);
+          vr += dt*(-(vr - 0.) / tau) * R_wavekill(r);
+          prim(IM1,k,j,i) = vr;
+        }
+
+	// set ghost cell values
 	for (int i=1; i<=ngh; ++i) {
           //GetCylCoord(pco,rad_gh,phi,z_gh,iu+i,j,k);
           r_ac = pco->x1v(iu); 

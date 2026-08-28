@@ -1,21 +1,22 @@
 <comment>
 problem   = Keplerian disk in cylindrical coordinates
 reference = 
-configure = --prob=disk_3d_basic_BCs --coord=cylindrical
+configure = --prob=disk_2d_planet_wk --coord=cylindrical
 
 <job>
-problem_id  = /scratch/phn2956/disk-cyl16/disk      # problem ID: basename of output filenames
+problem_id  = /scratch/phn2956/disk-2d-planet10d/disk      # problem ID: basename of output filenames
 
 <output1>
 file_type   = hdf5       # HDF5 data dump
 variable    = prim      #
-dt          = 31.4 # 62.8      # 1  # time increment between outputs
+dt          = 62.8      # 3.14  # time increment between outputs
+#dcycle = 1              # output interval in cycles; can only use dt OR dcycle
 # do NOT include ghost zones if using non-uniform grid spacing
 ghost_zones = 0         # 1 == includes ghost zones in output
 
 <output2>
 file_type   = hst       # History data dump
-dt          = .628    # time increment between outputs
+dt          = .628 # 0.314    # time increment between outputs
 
 <output3>
 file_type   = rst      # Restart data dump
@@ -24,28 +25,28 @@ dt 	    = 628     # time increment between outputs
 <output4>
 file_type   = hdf5
 variable    = user_out_var  # (or ``uov''; user-defined output variables)
-dt          = 31.4 # 62.8
+dt          = 62.8
 ghost_zones = 0             # 1 == include ghost zones in output
 
 <time>
 cfl_number  = 0.3       # The Courant, Friedrichs, & Lewy (CFL) Number
 nlim        = -1        # cycle limit
-tlim        = 3140 # 10000. #      # time limit
+tlim        = 10000 # 6280      # time limit
 integrator  = vl2       # time integration algorithm
 xorder      = 2         # order of spatial reconstruction
-ncycle_out  = 1 # 100        # interval for stdout summary info
+ncycle_out  = 100 # 1         # interval for stdout summary info
 
 <mesh> # (x1,x2,x3) = (R, phi, z)
-nx1         = 80 # 128            # Number of zones in X1-direction
-x1min       = 0.5            # minimum value of X1
-x1max       = 2.0            # maximum value of X1
+nx1         = 128 # 200            # Number of zones in X1-direction
+x1min       = 0.4 # 0.3            # minimum value of X1
+x1max       = 2.5 # 2.0            # maximum value of X1
 ix1_bc      = user           # Inner-X1 boundary condition flag
 ox1_bc      = user           # Outer-X1 boundary condition flag
 # for logarithmic spacing, use x1rat = (x1max/x1min)^(1/nx1)
 # (raises warning if >1.1)
-x1rat       = 1.01088928605         # non-uniform grid ratio
+x1rat       = 1.01442002241         # non-uniform grid ratio
 
-nx2         = 40 # 384            # Number of zones in X2-direction
+nx2         = 384 # 500            # Number of zones in X2-direction
 x2min       = 0.             # minimum value of X2
 x2max       = 6.2831853071795862   # maximum value of X2
 ix2_bc      = periodic       # Inner-X2 boundary condition flag
@@ -60,13 +61,13 @@ ox3_bc      = periodic       # Outer-X3 boundary condition flag
 refinement  = None
 
 <meshblock>
-nx1        = 20 # 16         # Number of zones in X1-direction in one MeshBlock
-nx2        = 20 # 16          # Number of zones in X2-direction in one MeshBlock
+nx1        = 16 # 32         # Number of zones in X1-direction in one MeshBlock
+nx2        = 16 # 64          # Number of zones in X2-direction in one MeshBlock
 nx3        = 1         # Number of zones in X3-direction in one MeshBlock
 
 <hydro>
 gamma           = 1.66666667 # gamma = C_p/C_v
-iso_sound_speed = 0.05 # 0.1        # isothermal sound speed
+iso_sound_speed = 0.1 # 0.05       # isothermal sound speed
 dfloor          = 1.e-6
 pfloor          = 1.e-9
 
@@ -83,10 +84,23 @@ rho0        = 1.0
 pslope      = 0.
 dslope      = -1.5  # exponent in density power law; -1.5 is steady state for viscous disk
 
-# gap parameters
+## params for "basic" gap profile
 R_gap = 1.0 # center of gap
 Delta_gap = 0.1 # half-width of gap
-depth_gap = 2.0 # depth of gap
+depth_gap = 1.0 # 2.0 # depth of gap
 
-alpha_const = 0.2    # viscosity parameter
+## planet parameters
+q = 1.e-3 # mass ratio
+b = 0.03 # 0.05 # gravitational softening radius
+
+## wave-killing zone parameters
+r_in = 0.4 # 0.4 # 0.5 # 0.3
+r_out = 2.5 # 2.5 # 2.0
+r_iwkz = 0.5 # 0.5 # 0.7 # 0.46
+r_owkz = 2.1 # 2.1 # 1.6
+tau_coeff = 0.2 # 1. # damping timescale tau = tau_coeff/Omega_K
+only_damp_vr = 1 # 1 = true (if 0, also damp Sigma and vphi)
+
+## viscosity parameters
+alpha_const = 0.2 # 4.e-3 # 1.e-2    # viscosity parameter
 nu_iso = 0.2  # not used, but NEEDS to be nonzero for Athena++ to actually turn on viscosity
