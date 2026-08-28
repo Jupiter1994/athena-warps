@@ -575,10 +575,10 @@ void DiskInnerX1(MeshBlock *pmb,Coordinates *pco, AthenaArray<Real> &prim, FaceF
       for (int j=jl; j<=ju; ++j) {
 	// i is the radial index local to the mb      
 	for (int i=il; i<=iu; ++i) {
-	  global_i = (pmb->loc.lx1 * pmb->block_size.nx1) + (i - il);
+	  //global_i = (pmb->loc.lx1 * pmb->block_size.nx1) + (i - il);
 	  // if vr_avg of r_in hasn't been set, skip damping
-	  if (vrs_avg[global_i] == 0.)
-	    break;
+	  //if (vrs_avg[global_i] == 0.)
+	  //  break;
 	  r = pco->x1v(i);
 	  //printf("r_%1d = %.1e \n", global_i, r);
 	  // exit loop once we're outside wave-killing zone
@@ -587,6 +587,11 @@ void DiskInnerX1(MeshBlock *pmb,Coordinates *pco, AthenaArray<Real> &prim, FaceF
 	  vr = prim(IM1,k,j,i);
 	  // tau = tau_coeff / Omega_K
 	  tau = tau_coeff * std::pow(r/r0, 1.5) / std::pow(gm0, 0.5); 
+	  
+	  // debugging
+          //printf("taucoeff_%1d = %.1e \n", j, tau_coeff);
+          //printf("tau_%1d = %.1e \n", j, tau);
+
 	  //printf("tau_%1d = %.1e \n", i, tau);
 	  // vr += dt*(-(vr - vrs_avg[global_i]) / tau) * R_wavekill(r);  
 	  vr += dt*(-(vr - 0.) / tau) * R_wavekill(r); // damp to 0
@@ -679,10 +684,10 @@ void DiskOuterX1(MeshBlock *pmb,Coordinates *pco, AthenaArray<Real> &prim, FaceF
       for (int j=jl; j<=ju; ++j) {
 	// i is the radial index local to the meshblock
 	for (int i=iu; i>=il; --i) {
-          global_i = (pmb->loc.lx1 * pmb->block_size.nx1) + (i - il);
+          //global_i = (pmb->loc.lx1 * pmb->block_size.nx1) + (i - il);
           // if vr_avg of r_out hasn't been set, skip damping
-          if (vrs_avg[global_i] == 0.)
-            break;
+          //if (vrs_avg[global_i] == 0.)
+          //  break;
 
 	  r = pco->x1v(i);
           //printf("r_%1d = %.1e \n", global_i, r);
@@ -692,7 +697,12 @@ void DiskOuterX1(MeshBlock *pmb,Coordinates *pco, AthenaArray<Real> &prim, FaceF
           vr = prim(IM1,k,j,i);
           // tau = tau_coeff / Omega_K
           tau = tau_coeff * std::pow(r/r0, 1.5) / std::pow(gm0, 0.5);
-          //vr += dt*(-(vr - vrs_avg[global_i]) / tau) * R_wavekill(r);
+          
+	  // debugging
+          //printf("taucoeff_%1d = %.1e \n", j, tau_coeff);
+          //printf("tau_%1d = %.1e \n", j, tau);
+
+	  //vr += dt*(-(vr - vrs_avg[global_i]) / tau) * R_wavekill(r);
 	  vr += dt*(-(vr - 0.) / tau) * R_wavekill(r); // damp to 0
 	  prim(IM1,k,j,i) = vr;
 	  if (!only_damp_vr) {
@@ -705,7 +715,7 @@ void DiskOuterX1(MeshBlock *pmb,Coordinates *pco, AthenaArray<Real> &prim, FaceF
             prim(IM2,k,j,i) = vphi;
           }
         }
-
+	
 	// set ghost cell values
         for (int i=1; i<=ngh; ++i) {
           GetCylCoord(pco,rad_gh,phi,z,iu+i,j,k);
