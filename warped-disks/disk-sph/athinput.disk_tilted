@@ -1,7 +1,7 @@
 <comment>
 problem   = Keplerian disk in spherical polar coordinates
 reference = 
-configure = --prob=disk --coord=spherical_polar
+configure = --prob=disk_tilted --coord=spherical_polar
 
 <job>
 problem_id  = /scratch/phn2956/disk-tilted28/disk      # problem ID: basename of output filenames

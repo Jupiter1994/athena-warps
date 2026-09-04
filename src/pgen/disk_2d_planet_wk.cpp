@@ -594,7 +594,8 @@ void DiskInnerX1(MeshBlock *pmb,Coordinates *pco, AthenaArray<Real> &prim, FaceF
 
 	  //printf("tau_%1d = %.1e \n", i, tau);
 	  // vr += dt*(-(vr - vrs_avg[global_i]) / tau) * R_wavekill(r);  
-	  vr += dt*(-(vr - 0.) / tau) * R_wavekill(r); // damp to 0
+	  // vr += dt*(-(vr - 0.) / tau) * R_wavekill(r); // damp to 0 (Eulerian)
+	  vr *= std::exp(-R_wavekill(r)/tau * dt); // damp to 0 (analytic)
 	  //printf("vr_%1d = %.1e \n", i, vr);
 	  prim(IM1,k,j,i) = vr;
 	  if (!only_damp_vr) {

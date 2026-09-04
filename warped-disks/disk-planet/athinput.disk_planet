@@ -1,15 +1,15 @@
 <comment>
 problem   = Keplerian disk in spherical polar coordinates
 reference = 
-configure = --prob=disk --coord=spherical_polar
+configure = --prob=disk_planet --coord=spherical_polar
 
 <job>
-problem_id  = /scratch/phn2956/disk-planet5/disk      # problem ID: basename of output filenames
+problem_id  = /scratch/phn2956/disk-planet6b/disk      # problem ID: basename of output filenames
 
 <output1> 
 file_type   = hdf5      # default: vtk output
 variable    = prim      # prim or cons
-dt          = 12.56      # 31.4      # time increment between outputs
+dt          = 31.4      # 31.4      # time increment between outputs
 ghost_zones = 0         # default = 0/false (ie, don't include ghost zones) 
 
 <output2>
@@ -23,13 +23,13 @@ dt          = 314      # time increment between outputs
 <output4>
 file_type   = hdf5
 variable    = user_out_var  # (or ``uov''; user-defined output variables)
-dt          = 12.56
+dt          = 31.4
 ghost_zones = 0             # 1 == include ghost zones in output
 
 <time>
 cfl_number  = 0.3       # The Courant, Friedrichs, & Lewy (CFL) Number
 nlim        = -1        # cycle limit
-tlim        = 1256.  # 314.      # time limit; 6280 in Jiaru's sim
+tlim        = 3140.  # 314.      # time limit; 6280 in Jiaru's sim
 integrator  = rk2 # vl2       # time integration algorithm
 xorder      = 2         # order of spatial reconstruction
 ncycle_out  = 1         # interval for stdout summary info
@@ -46,12 +46,12 @@ x1rat       = 1.01088928605         # non-uniform grid ratio
 
 nx2         = 128 # 128        # Number of zones in X2-direction
 # theta half-width = 5c_s = 0.25; pi/2 = 1.5708; extend both limits by W_out
-x2min       = 1.3208    # 1.3208    # minimum value of X2
-x2max       = 1.8208    # 1.8208    # maximum value of X2
+x2min       = 1.2808    # 1.3208    # minimum value of X2
+x2max       = 1.8608    # 1.8208    # maximum value of X2
 ix2_bc      = reflecting      # Inner-X2 boundary condition flag
 ox2_bc      = reflecting      # Outer-X2 boundary condition flag
 
-nx3         = 130 # 130            # Number of zones in X3-direction
+nx3         = 384 # 130            # Number of zones in X3-direction
 x3min       = 0.0            # minimum value of X3
 x3max       = 6.2831853071795862  # maximum value of X3
 ix3_bc      = periodic       # Inner-X3 boundary condition flag
@@ -60,13 +60,13 @@ ox3_bc      = periodic       # Outer-X3 boundary condition flag
 # refinement  = None
 
 <meshblock>
-nx1        = 32 # 32        # Number of zones per MeshBlock in X1-direction
-nx2        = 32 # 32        # Number of zones per MeshBlock in X2-direction
-nx3        = 10        # Number of zones per MeshBlock in X3-direction
+nx1        = 16 # 32        # Number of zones per MeshBlock in X1-direction
+nx2        = 16 # 32        # Number of zones per MeshBlock in X2-direction
+nx3        = 32        # Number of zones per MeshBlock in X3-direction
 
 <hydro>
 gamma           = 1.66666667 # gamma = C_p/C_v
-iso_sound_speed = 0.1 # 0.05        # isothermal sound speed
+iso_sound_speed = 0.05 # 0.05        # isothermal sound speed
 dfloor          = 1.e-12        #  1.e-10
 pfloor          = 1.e-16        # 1.e-14       
 
@@ -85,7 +85,7 @@ r_in         = 0.5
 r_out         = 2.0
 xi_1        = 0.0
 xi_2        = 0.0
-W_out       = 0.1 # 0.04 # note: I rotate disk around the y-axis in +z direction
+W_out       = 0.04 # 0.1 # note: I rotate disk around the y-axis in +z direction
 # alpha_0     = 0.001
 alpha_const = 0.2 # 0.05
 
@@ -96,14 +96,14 @@ depth_gap = 1.0 # 2.0 # depth of gap
 
 ## planet parameters
 q = 1.e-3 # 0.002 # mass ratio
-b = 0.06 # 0.05 # gravitational softening radius
+b = 0.05 # 0.05 # gravitational softening radius
 
 ## wave-killing zone parameters
 r_in = 0.5
 r_out = 2.0
 r_iwkz = 0.7
 r_owkz = 1.6
-tau_coeff = 0.2 # 1.  # damping timescale tau = tau_coeff / Omega_K
+tau_coeff = 0.0333 # 0.2 # 1.  # damping timescale tau = tau_coeff / Omega_K
 
 ## below params are for the more complex gap profile
 # depth_gap = 19.0
