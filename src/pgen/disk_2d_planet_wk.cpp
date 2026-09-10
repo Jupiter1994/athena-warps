@@ -478,10 +478,11 @@ Real R_wavekill(Real r) {
 
     Real R_r = 0.;
 
+    // 9/10/26: trying a step function kernel
     if (r >= r_in and r <= r_iwkz)
-        R_r = SQR(r_iwkz - r) / SQR(r_iwkz - r_in);
+        R_r = 1.; // quadratic kernel: SQR(r_iwkz - r) / SQR(r_iwkz - r_in);
     else if (r >= r_owkz and r <= r_out)
-	R_r = SQR(r - r_owkz) / SQR(r_out - r_owkz);
+	R_r = 1.; // quadratic kernel: SQR(r - r_owkz) / SQR(r_out - r_owkz);
 
     return R_r;
 }
@@ -704,7 +705,8 @@ void DiskOuterX1(MeshBlock *pmb,Coordinates *pco, AthenaArray<Real> &prim, FaceF
           //printf("tau_%1d = %.1e \n", j, tau);
 
 	  //vr += dt*(-(vr - vrs_avg[global_i]) / tau) * R_wavekill(r);
-	  vr += dt*(-(vr - 0.) / tau) * R_wavekill(r); // damp to 0
+	  // vr += dt*(-(vr - 0.) / tau) * R_wavekill(r); // damp to 0
+	  vr *= std::exp(-R_wavekill(r)/tau * dt); // damp to 0 (analytic)
 	  prim(IM1,k,j,i) = vr;
 	  if (!only_damp_vr) {
 	    //printf("Sigma being damped (out)\n");
