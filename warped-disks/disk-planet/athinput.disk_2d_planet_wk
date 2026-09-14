@@ -4,12 +4,12 @@ reference =
 configure = --prob=disk_2d_planet_wk --coord=cylindrical
 
 <job>
-problem_id  = /scratch/phn2956/disk-2d-planet15/disk      # problem ID: basename of output filenames
+problem_id  = /scratch/phn2956/disk-2d-planet16/disk      # problem ID: basename of output filenames
 
 <output1>
 file_type   = hdf5       # HDF5 data dump
 variable    = prim      #
-dt          = 314      # 314  # time increment between outputs
+dt          = 314 #  314      # 314  # time increment between outputs
 #dcycle = 1              # output interval in cycles; can only use dt OR dcycle
 # do NOT include ghost zones if using non-uniform grid spacing
 ghost_zones = 0         # 1 == includes ghost zones in output
@@ -25,19 +25,19 @@ dt 	    = 3140     # time increment between outputs
 <output4>
 file_type   = hdf5
 variable    = user_out_var  # (or ``uov''; user-defined output variables)
-dt          = 314
+dt          = 314 # 314
 ghost_zones = 0             # 1 == include ghost zones in output
 
 <time>
 cfl_number  = 0.3       # The Courant, Friedrichs, & Lewy (CFL) Number
 nlim        = -1        # cycle limit
-tlim        = 12560 # 31400      # time limit
+tlim        = 31400 # 31400      # time limit
 integrator  = vl2       # time integration algorithm
 xorder      = 2         # order of spatial reconstruction
 ncycle_out  = 100000 # 1         # interval for stdout summary info
 
 <mesh> # (x1,x2,x3) = (R, phi, z)
-nx1         = 128 # 80 # 128            # Number of zones in X1-direction
+nx1         = 128            # Number of zones in X1-direction
 x1min       = 0.3 # 0.5 # 0.4            # minimum value of X1
 x1max       = 3.68 # 3.68 # 2.5 # 2.0            # maximum value of X1
 ix1_bc      = user           # Inner-X1 boundary condition flag
@@ -46,7 +46,7 @@ ox1_bc      = user           # Outer-X1 boundary condition flag
 # (raises warning if >1.1)
 x1rat       = 1.01977808858         # non-uniform grid ratio
 
-nx2         = 384 # 40 # 384            # Number of zones in X2-direction
+nx2         = 384            # Number of zones in X2-direction
 x2min       = 0.             # minimum value of X2
 x2max       = 6.2831853071795862   # maximum value of X2
 ix2_bc      = periodic       # Inner-X2 boundary condition flag

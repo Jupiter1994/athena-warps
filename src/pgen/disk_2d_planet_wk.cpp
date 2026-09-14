@@ -230,7 +230,7 @@ void MeshBlock::ProblemGenerator(ParameterInput *pin) {
 // at every radius within the wave-killing zones: [r_in, r_iwkz] and 
 // [r_owkz, r_out]. 
 // Can be commented out if only damping v_r *and* damping it to 0. 
-/* 
+ 
 void Mesh::UserWorkInLoop() {
    
     Real r;  
@@ -324,7 +324,7 @@ void Mesh::UserWorkInLoop() {
   return;
 
 }
-*/
+
 
 // Calculate user-defined output variables.
 void MeshBlock::UserWorkBeforeOutput(ParameterInput *pin)
@@ -478,11 +478,10 @@ Real R_wavekill(Real r) {
 
     Real R_r = 0.;
 
-    // 9/10/26: trying a step function kernel
     if (r >= r_in and r <= r_iwkz)
-        R_r = 1.; // quadratic kernel: SQR(r_iwkz - r) / SQR(r_iwkz - r_in);
+        R_r = SQR(r_iwkz - r) / SQR(r_iwkz - r_in);
     else if (r >= r_owkz and r <= r_out)
-	R_r = 1.; // quadratic kernel: SQR(r - r_owkz) / SQR(r_out - r_owkz);
+	R_r = SQR(r - r_owkz) / SQR(r_out - r_owkz);
 
     return R_r;
 }
@@ -576,10 +575,10 @@ void DiskInnerX1(MeshBlock *pmb,Coordinates *pco, AthenaArray<Real> &prim, FaceF
       for (int j=jl; j<=ju; ++j) {
 	// i is the radial index local to the mb      
 	for (int i=il; i<=iu; ++i) {
-	  //global_i = (pmb->loc.lx1 * pmb->block_size.nx1) + (i - il);
+	  global_i = (pmb->loc.lx1 * pmb->block_size.nx1) + (i - il);
 	  // if vr_avg of r_in hasn't been set, skip damping
-	  //if (vrs_avg[global_i] == 0.)
-	  //  break;
+	  if (vrs_avg[global_i] == 0.)
+	    break;
 	  r = pco->x1v(i);
 	  //printf("r_%1d = %.1e \n", global_i, r);
 	  // exit loop once we're outside wave-killing zone
@@ -594,9 +593,9 @@ void DiskInnerX1(MeshBlock *pmb,Coordinates *pco, AthenaArray<Real> &prim, FaceF
           //printf("tau_%1d = %.1e \n", j, tau);
 
 	  //printf("tau_%1d = %.1e \n", i, tau);
-	  // vr += dt*(-(vr - vrs_avg[global_i]) / tau) * R_wavekill(r);  
+	  vr += dt*(-(vr - vrs_avg[global_i]) / tau) * R_wavekill(r);  
 	  // vr += dt*(-(vr - 0.) / tau) * R_wavekill(r); // damp to 0 (Eulerian)
-	  vr *= std::exp(-R_wavekill(r)/tau * dt); // damp to 0 (analytic)
+	  // vr *= std::exp(-R_wavekill(r)/tau * dt); // damp to 0 (analytic)
 	  //printf("vr_%1d = %.1e \n", i, vr);
 	  prim(IM1,k,j,i) = vr;
 	  if (!only_damp_vr) {
@@ -686,10 +685,10 @@ void DiskOuterX1(MeshBlock *pmb,Coordinates *pco, AthenaArray<Real> &prim, FaceF
       for (int j=jl; j<=ju; ++j) {
 	// i is the radial index local to the meshblock
 	for (int i=iu; i>=il; --i) {
-          //global_i = (pmb->loc.lx1 * pmb->block_size.nx1) + (i - il);
+          global_i = (pmb->loc.lx1 * pmb->block_size.nx1) + (i - il);
           // if vr_avg of r_out hasn't been set, skip damping
-          //if (vrs_avg[global_i] == 0.)
-          //  break;
+          if (vrs_avg[global_i] == 0.)
+            break;
 
 	  r = pco->x1v(i);
           //printf("r_%1d = %.1e \n", global_i, r);
@@ -704,9 +703,9 @@ void DiskOuterX1(MeshBlock *pmb,Coordinates *pco, AthenaArray<Real> &prim, FaceF
           //printf("taucoeff_%1d = %.1e \n", j, tau_coeff);
           //printf("tau_%1d = %.1e \n", j, tau);
 
-	  //vr += dt*(-(vr - vrs_avg[global_i]) / tau) * R_wavekill(r);
+	  vr += dt*(-(vr - vrs_avg[global_i]) / tau) * R_wavekill(r);
 	  // vr += dt*(-(vr - 0.) / tau) * R_wavekill(r); // damp to 0
-	  vr *= std::exp(-R_wavekill(r)/tau * dt); // damp to 0 (analytic)
+	  // vr *= std::exp(-R_wavekill(r)/tau * dt); // damp to 0 (analytic)
 	  prim(IM1,k,j,i) = vr;
 	  if (!only_damp_vr) {
 	    //printf("Sigma being damped (out)\n");

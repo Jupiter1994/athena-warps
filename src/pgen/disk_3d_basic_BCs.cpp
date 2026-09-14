@@ -412,8 +412,9 @@ void DiskOuterX1(MeshBlock *pmb,Coordinates *pco, AthenaArray<Real> &prim, FaceF
 
 	  den = DenProfileCyl(rad_gh,phi,z); // slightly incorrect if dslope != -1.5
 	  den = std::max(den,dfloor);
-	  prim(IDN,k,j,iu+i) = den; // hold fixed at steady-state Sigma value
-          //prim(IDN,k,j,iu+i) = prim(IDN,k,j,iu) * std::pow(rad_gh/rad,-1.5);
+	  //prim(IDN,k,j,iu+i) = den; // hold fixed at steady-state Sigma value
+          // extrapolate Sigma
+	  prim(IDN,k,j,iu+i) = prim(IDN,k,j,iu) * std::pow(rad_gh/rad,-1.5);
 
           vel = VelProfileCyl(rad,phi,z); // ignore since no orbital advection
 	  if (pmb->porb->orbital_advection_defined)
