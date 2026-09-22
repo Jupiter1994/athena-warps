@@ -41,6 +41,7 @@ void GetCylCoord(Coordinates *pco,Real &rad,Real &phi,Real &z,int i,int j,int k)
 Real DenProfileCyl(const Real rad, const Real phi, const Real z);
 Real PoverR(const Real rad, const Real phi, const Real z);
 Real VelProfileCyl(const Real rad, const Real phi, const Real z);
+Real R_wavekill(Real r);
 // problem parameters which are useful to make global to this file
 Real gm0, r0, rho0, dslope, p0_over_r0, pslope, gamma_gas;
 Real R_gap, Delta_gap, depth_gap; // gapped density profile parameters
@@ -87,6 +88,12 @@ void alpha_viscosity(HydroDiffusion *phdif, MeshBlock *pmb,
               const AthenaArray<Real> &prim,const AthenaArray<Real> &bcc,
               int is, int ie, int js, int je,int ks, int ke);
 void PlanetPotential(MeshBlock *pmb, const Real time, const Real dt,
+              const AthenaArray<Real> &prim, const AthenaArray<Real> &prim_scalar,
+              const AthenaArray<Real> &bcc, AthenaArray<Real> &cons,
+              AthenaArray<Real> &cons_scalar);
+void WaveKilling(MeshBlock *pmb, const Real time, const Real dt,
+              const AthenaArray<Real> &prim, AthenaArray<Real> &cons);
+void MySourceTerms(MeshBlock *pmb, const Real time, const Real dt,
               const AthenaArray<Real> &prim, const AthenaArray<Real> &prim_scalar,
               const AthenaArray<Real> &bcc, AthenaArray<Real> &cons,
               AthenaArray<Real> &cons_scalar);
@@ -166,7 +173,9 @@ void Mesh::InitUserMeshData(ParameterInput *pin) {
 
   // enroll user-defined viscosity
   EnrollViscosityCoefficient(alpha_viscosity);
-  EnrollUserExplicitSourceFunction(PlanetPotential);
+  // Claude: implement both planet potential + wave-killing 
+  // using one source function
+  EnrollUserExplicitSourceFunction(MySourceTerms);
 
   return;
 }
@@ -219,9 +228,9 @@ void MeshBlock::ProblemGenerator(ParameterInput *pin) {
           phydro->u(IEN,k,j,i) += 0.5*(SQR(phydro->u(IM1,k,j,i))+SQR(phydro->u(IM2,k,j,i))
                                        + SQR(phydro->u(IM3,k,j,i)))/phydro->u(IDN,k,j,i);
         }
-      }
-    }
-  }
+      } // end i loop
+    } // end j loop
+  } // end k loop
 
   return;
 }
@@ -235,12 +244,14 @@ void Mesh::UserWorkInLoop() {
    
     Real r;  
     // this mesh's contribution to the global vrs_avg
-    int vrs_avg_size = sizeof(vrs_avg) / sizeof(vrs_avg[0]);
+    // (constexpr guarantees the arrays have fixed size)
+    constexpr int vrs_avg_size = sizeof(vrs_avg) / sizeof(vrs_avg[0]);
     Real mesh_vrs_avg[vrs_avg_size] = {}; // set all elements to 0
     Real mesh_Sigmas_avg[vrs_avg_size] = {};
     Real mesh_vphis_avg[vrs_avg_size] = {};
     int global_i; // global radial index
-    int global_N_phi; // global number of phi cells
+    // global number of phi cells
+    int global_N_phi = mesh_size.nx2;
 
     Real mesh_N_mbs = nblocal; // number of MeshBlocks (this mesh)
 
@@ -318,9 +329,9 @@ void Mesh::UserWorkInLoop() {
         vphis_avg[idx] /= global_N_phi;
       }
   }
-  //printf("mesh_vrs_avg[2] = %.1e \n", mesh_vrs_avg[2]);
-  //printf("vrs_avg[2] = %.1e \n", vrs_avg[2]);
-
+  //printf("mesh_vrs_avg[10] = %.1e \n", mesh_vrs_avg[10]);
+  //printf("vrs_avg[10] = %.1e \n", vrs_avg[10]);
+  //printf("global_N_phi = %.1e \n", global_N_phi); 
   return;
 
 }
@@ -468,6 +479,70 @@ void PlanetPotential(MeshBlock *pmb, const Real time, const Real dt,
     return;
 }
 
+//----------------------------------------------------------------------------------------
+//! source term function for wave-killing at the domain boundaries (see Dempsey+ 2020,
+// Eq. 59) --- adapted from Claude's implementation
+void WaveKilling(MeshBlock *pmb, const Real time, const Real dt,
+               const AthenaArray<Real> &prim, AthenaArray<Real> &cons) {
+
+    if (std::strcmp(COORDINATE_SYSTEM, "cylindrical") != 0) return;
+
+    Real r; // radius
+    Real Sigma, vr, vphi; 
+    Real Sigma_tgt, vr_tgt, vphi_tgt; // target values to damp to
+    Real tau; // local damping timescale for wave-killing
+    Real R_r; // wave-killing kernel
+    Real damp_term; // used for damping; has the form 1-e^(-R(r)*dt/tau)
+    int global_i; // global radial index
+
+    for (int k=pmb->ks; k<=pmb->ke; ++k) {
+        for (int i=pmb->is; i<=pmb->ie; ++i) {
+            r = pmb->pcoord->x1v(i);
+            R_r = R_wavekill(r);
+            if (R_r == 0.0) continue;  // outside both wave-killing zones
+            
+            global_i = (pmb->loc.lx1 * pmb->block_size.nx1) + (i - pmb->is);
+	    // if vr_avg of r_in hasn't been set, skip damping
+	    if (vrs_avg[global_i] == 0.) break;
+	    vr_tgt = vrs_avg[global_i];
+
+            tau = tau_coeff * std::pow(r/r0, 1.5) / std::sqrt(gm0);
+	    damp_term = 1. - std::exp(-R_r * dt/tau);
+	    
+	    for (int j=pmb->js; j<=pmb->je; ++j) {
+	    	Sigma = prim(IDN,k,j,i);
+	        vr = prim(IM1,k,j,i);
+	        vphi = prim(IM2,k,j,i);
+	
+	        if (only_damp_vr) {
+	            // exact/analytic expression for damping
+	            cons(IM1,k,j,i) += Sigma * damp_term * (vr_tgt - vr);
+	        }
+	        else { // if following de Val-Borro+ 2006, 
+	        // also damp Sigma and vphi
+	            Sigma_tgt = Sigmas_avg[global_i];
+	            vphi_tgt = vphis_avg[global_i];
+	            cons(IDN,k,j,i) += damp_term * (Sigma_tgt - Sigma);
+	            cons(IM1,k,j,i) += damp_term * (Sigma_tgt*vr_tgt - Sigma*vr);
+                    cons(IM2,k,j,i) += damp_term * (Sigma_tgt*vphi_tgt - Sigma*vphi);
+	        }
+          } // end j loop
+       } // end i loop
+    } // end k loop
+    return;
+}
+
+//----------------------------------------------------------------------------------------
+//! Contains all user-defined source terms
+void MySourceTerms(MeshBlock *pmb, const Real time, const Real dt,
+               const AthenaArray<Real> &prim, const AthenaArray<Real> &prim_scalar,
+               const AthenaArray<Real> &bcc, AthenaArray<Real> &cons,
+               AthenaArray<Real> &cons_scalar) {
+    PlanetPotential(pmb, time, dt, prim, prim_scalar, bcc, cons, cons_scalar);
+    WaveKilling(pmb, time, dt, prim, cons);
+    return;
+}
+
 
 namespace {
 
@@ -481,7 +556,7 @@ Real R_wavekill(Real r) {
     if (r >= r_in and r <= r_iwkz)
         R_r = SQR(r_iwkz - r) / SQR(r_iwkz - r_in);
     else if (r >= r_owkz and r <= r_out)
-	R_r = SQR(r - r_owkz) / SQR(r_out - r_owkz);
+        R_r = SQR(r - r_owkz) / SQR(r_out - r_owkz);
 
     return R_r;
 }
@@ -564,77 +639,37 @@ void DiskInnerX1(MeshBlock *pmb,Coordinates *pco, AthenaArray<Real> &prim, FaceF
   Real vel;
   Real rad_gh, z_gh; // cylindrical radius and height at ghost cell
   Real r, r_gh; // spherical radii of last active and ghost cells, respectively
-  Real vr; // radial velocity at a given radius (used for wave-killing)
-  Real Sigma, vphi; // used for de Val-Borro wave-killing
-  Real tau; // local damping timescale for wave-killing
-  int global_i; // global radial index
   OrbitalVelocityFunc &vK = pmb->porb->OrbitalVelocity;
 
   if (std::strcmp(COORDINATE_SYSTEM, "cylindrical") == 0) {
     for (int k=kl; k<=ku; ++k) {
       for (int j=jl; j<=ju; ++j) {
-	// i is the radial index local to the mb      
-	for (int i=il; i<=iu; ++i) {
-	  global_i = (pmb->loc.lx1 * pmb->block_size.nx1) + (i - il);
-	  // if vr_avg of r_in hasn't been set, skip damping
-	  if (vrs_avg[global_i] == 0.)
-	    break;
-	  r = pco->x1v(i);
-	  //printf("r_%1d = %.1e \n", global_i, r);
-	  // exit loop once we're outside wave-killing zone
-	  if (r > r_iwkz)
-	    break;
-	  vr = prim(IM1,k,j,i);
-	  // tau = tau_coeff / Omega_K
-	  tau = tau_coeff * std::pow(r/r0, 1.5) / std::pow(gm0, 0.5); 
+	    // set ghost cell values
+	    for (int i=1; i<=ngh; ++i) {
+            GetCylCoord(pco,rad_gh,phi,z,il-i,j,k);
+	        GetCylCoord(pco,rad,phi,z,il,j,k);
+	        // extrapolate Sigma
+            prim(IDN,k,j,il-i) = prim(IDN,k,j,il) * std::pow(rad_gh/rad,-1.5);
+            vel = VelProfileCyl(rad,phi,z); // not used
+            if (pmb->porb->orbital_advection_defined)
+                vel -= vK(pmb->porb, pco->x1v(il-i), pco->x2v(j), pco->x3v(k));
+            // extrapolate v_R
+	        prim(IM1,k,j,il-i) = prim(IM1,k,j,il) * std::pow(rad_gh/rad,0.5);
 	  
-	  // debugging
-          //printf("taucoeff_%1d = %.1e \n", j, tau_coeff);
-          //printf("tau_%1d = %.1e \n", j, tau);
+	        bool use_solid_boundary = false;
+	        if (use_solid_boundary) {
+	            prim(IDN,k,j,il-i) = DenProfileCyl(rad_gh,phi,z);
+	            prim(IM1,k,j,il-i) = 0.;
+	        }
 
-	  //printf("tau_%1d = %.1e \n", i, tau);
-	  vr += dt*(-(vr - vrs_avg[global_i]) / tau) * R_wavekill(r);  
-	  // vr += dt*(-(vr - 0.) / tau) * R_wavekill(r); // damp to 0 (Eulerian)
-	  // vr *= std::exp(-R_wavekill(r)/tau * dt); // damp to 0 (analytic)
-	  //printf("vr_%1d = %.1e \n", i, vr);
-	  prim(IM1,k,j,i) = vr;
-	  if (!only_damp_vr) {
-	    //printf("Sigma being damped (in)\n");
-	    Sigma = prim(IDN,k,j,i);
-	    vphi = prim(IM2,k,j,i);
-	    Sigma += dt*(-(Sigma - Sigmas_avg[global_i]) / tau) * R_wavekill(r);
-	    vphi += dt*(-(vphi - vphis_avg[global_i]) / tau) * R_wavekill(r);
-	    prim(IDN,k,j,i) = Sigma;
-	    prim(IM2,k,j,i) = vphi;
-	  }
-	}  
-
-	// set ghost cell values
-	for (int i=1; i<=ngh; ++i) {
-          GetCylCoord(pco,rad_gh,phi,z,il-i,j,k);
-	  GetCylCoord(pco,rad,phi,z,il,j,k);
-	  // extrapolate Sigma
-          prim(IDN,k,j,il-i) = prim(IDN,k,j,il) * std::pow(rad_gh/rad,-1.5);
-          vel = VelProfileCyl(rad,phi,z); // not used
-          if (pmb->porb->orbital_advection_defined)
-            vel -= vK(pmb->porb, pco->x1v(il-i), pco->x2v(j), pco->x3v(k));
-          // extrapolate v_R
-	  prim(IM1,k,j,il-i) = prim(IM1,k,j,il) * std::pow(rad_gh/rad,0.5);
-	  
-	  bool use_solid_boundary = false;
-	  if (use_solid_boundary) {
-	    prim(IDN,k,j,il-i) = DenProfileCyl(rad_gh,phi,z);
-	    prim(IM1,k,j,il-i) = 0.;
-	  }
-
-	  // below line excludes pressure correction to v_phi
-	  prim(IM2,k,j,il-i) = prim(IM2,k,j,il) * std::pow(rad_gh/rad,-0.5);
-          prim(IM3,k,j,il-i) = 0.0;
-          if (NON_BAROTROPIC_EOS)
-            prim(IEN,k,j,il-i) = PoverR(rad, phi, z)*prim(IDN,k,j,il-i);
-        }
-      }
-    }
+	        // below line excludes pressure correction to v_phi
+	        prim(IM2,k,j,il-i) = prim(IM2,k,j,il) * std::pow(rad_gh/rad,-0.5);
+            prim(IM3,k,j,il-i) = 0.0;
+            if (NON_BAROTROPIC_EOS)
+                prim(IEN,k,j,il-i) = PoverR(rad, phi, z)*prim(IDN,k,j,il-i);
+        } // end i loop
+      } // end j loop
+    } // end k loop
   } else if (std::strcmp(COORDINATE_SYSTEM, "spherical_polar") == 0) {
     for (int k=kl; k<=ku; ++k) {
       for (int j=jl; j<=ju; ++j) {
@@ -674,73 +709,34 @@ void DiskOuterX1(MeshBlock *pmb,Coordinates *pco, AthenaArray<Real> &prim, FaceF
   Real r, r_gh; // spherical radii of last active and ghost cells, respectively
   Real z_over_H; // z/H (used if coord sys is spherical)
   Real den, vel;
-  Real vr; // radial velocity at a given radius (used for wave-killing)
-  Real Sigma, vphi; // used for de Val-Borro wave-killing
-  Real tau; // local damping timescale for wave-killing
-  int global_i; // global radial index
   OrbitalVelocityFunc &vK = pmb->porb->OrbitalVelocity;
 
   if (std::strcmp(COORDINATE_SYSTEM, "cylindrical") == 0) {
     for (int k=kl; k<=ku; ++k) {
       for (int j=jl; j<=ju; ++j) {
-	// i is the radial index local to the meshblock
-	for (int i=iu; i>=il; --i) {
-          global_i = (pmb->loc.lx1 * pmb->block_size.nx1) + (i - il);
-          // if vr_avg of r_out hasn't been set, skip damping
-          if (vrs_avg[global_i] == 0.)
-            break;
-
-	  r = pco->x1v(i);
-          //printf("r_%1d = %.1e \n", global_i, r);
-	  // exit loop once we're outside wave-killing zone
-          if (r < r_owkz)
-            break;
-          vr = prim(IM1,k,j,i);
-          // tau = tau_coeff / Omega_K
-          tau = tau_coeff * std::pow(r/r0, 1.5) / std::pow(gm0, 0.5);
-          
-	  // debugging
-          //printf("taucoeff_%1d = %.1e \n", j, tau_coeff);
-          //printf("tau_%1d = %.1e \n", j, tau);
-
-	  vr += dt*(-(vr - vrs_avg[global_i]) / tau) * R_wavekill(r);
-	  // vr += dt*(-(vr - 0.) / tau) * R_wavekill(r); // damp to 0
-	  // vr *= std::exp(-R_wavekill(r)/tau * dt); // damp to 0 (analytic)
-	  prim(IM1,k,j,i) = vr;
-	  if (!only_damp_vr) {
-	    //printf("Sigma being damped (out)\n");
-            Sigma = prim(IDN,k,j,i);
-            vphi = prim(IM2,k,j,i);
-            Sigma += dt*(-(Sigma - Sigmas_avg[global_i]) / tau) * R_wavekill(r);
-            vphi += dt*(-(vphi - vphis_avg[global_i]) / tau) * R_wavekill(r);
-            prim(IDN,k,j,i) = Sigma;
-            prim(IM2,k,j,i) = vphi;
-          }
-        }
-	
-	// set ghost cell values
+	    // set ghost cell values
         for (int i=1; i<=ngh; ++i) {
-          GetCylCoord(pco,rad_gh,phi,z,iu+i,j,k);
-	  GetCylCoord(pco,rad,phi,z,iu,j,k);
+            GetCylCoord(pco,rad_gh,phi,z,iu+i,j,k);
+	        GetCylCoord(pco,rad,phi,z,iu,j,k);
 
-	  den = DenProfileCyl(rad_gh,phi,z); // slightly incorrect if dslope != -1.5
-	  den = std::max(den,dfloor);
-	  prim(IDN,k,j,iu+i) = den; // hold fixed at steady-state Sigma value
-          //prim(IDN,k,j,iu+i) = prim(IDN,k,j,iu) * std::pow(rad_gh/rad,-1.5);
+	        den = DenProfileCyl(rad_gh,phi,z); // slightly incorrect if dslope != -1.5
+	        den = std::max(den,dfloor);
+	        prim(IDN,k,j,iu+i) = den; // hold fixed at steady-state Sigma value
+                //prim(IDN,k,j,iu+i) = prim(IDN,k,j,iu) * std::pow(rad_gh/rad,-1.5);
 
-          vel = VelProfileCyl(rad,phi,z); // ignore since no orbital advection
-	  if (pmb->porb->orbital_advection_defined)
-            vel -= vK(pmb->porb, pco->x1v(iu+i), pco->x2v(j), pco->x3v(k));
-          //prim(IM1,k,j,iu+i) = prim(IM1,k,j,iu) * std::pow(rad_gh/rad,0.5);
-	  vK_gh = std::sqrt(gm0/rad_gh);
-	  prim(IM1,k,j,iu+i) = -1.5*alpha_const*p0_over_r0/vK_gh; // hold fixed
-	  prim(IM2,k,j,iu+i) = VelProfileCyl(rad_gh,phi,z); // slightly incorrect if dslope!=-1.5
-	  prim(IM3,k,j,iu+i) = 0.0;
-          if (NON_BAROTROPIC_EOS)
-            prim(IEN,k,j,iu+i) = PoverR(rad, phi, z)*prim(IDN,k,j,iu+i);
-        }
-      }
-    }
+            vel = VelProfileCyl(rad,phi,z); // ignore since no orbital advection
+	        if (pmb->porb->orbital_advection_defined)
+                vel -= vK(pmb->porb, pco->x1v(iu+i), pco->x2v(j), pco->x3v(k));
+            //prim(IM1,k,j,iu+i) = prim(IM1,k,j,iu) * std::pow(rad_gh/rad,0.5);
+	        vK_gh = std::sqrt(gm0/rad_gh);
+	        prim(IM1,k,j,iu+i) = -1.5*alpha_const*p0_over_r0/vK_gh; // hold fixed
+	        prim(IM2,k,j,iu+i) = VelProfileCyl(rad_gh,phi,z); // slightly incorrect if dslope!=-1.5
+	        prim(IM3,k,j,iu+i) = 0.0;
+            if (NON_BAROTROPIC_EOS)
+                prim(IEN,k,j,iu+i) = PoverR(rad, phi, z)*prim(IDN,k,j,iu+i);
+        } // end i loop
+      } // end j loop
+    } // end k loop
   } else if (std::strcmp(COORDINATE_SYSTEM, "spherical_polar") == 0) {
     for (int k=kl; k<=ku; ++k) {
       for (int j=jl; j<=ju; ++j) {

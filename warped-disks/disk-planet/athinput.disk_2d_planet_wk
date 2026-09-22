@@ -4,49 +4,49 @@ reference =
 configure = --prob=disk_2d_planet_wk --coord=cylindrical
 
 <job>
-problem_id  = /scratch/phn2956/disk-2d-planet16/disk      # problem ID: basename of output filenames
+problem_id  = /scratch/phn2956/disk-2d-planet19/disk      # problem ID: basename of output filenames
 
 <output1>
 file_type   = hdf5       # HDF5 data dump
 variable    = prim      #
-dt          = 314 #  314      # 314  # time increment between outputs
-#dcycle = 1              # output interval in cycles; can only use dt OR dcycle
+dt          = 31.4 #  314      # 314  # time increment between outputs
+# dcycle = 1              # output interval in cycles; can only use dt OR dcycle
 # do NOT include ghost zones if using non-uniform grid spacing
 ghost_zones = 0         # 1 == includes ghost zones in output
 
 <output2>
 file_type   = hst       # History data dump
-dt          = 31.4 # 31.4    # time increment between outputs
+dt          = 3.14 # 31.4    # time increment between outputs
 
 <output3>
 file_type   = rst      # Restart data dump
-dt 	    = 3140     # time increment between outputs
+dt 	    = 628     # time increment between outputs
 
 <output4>
 file_type   = hdf5
 variable    = user_out_var  # (or ``uov''; user-defined output variables)
-dt          = 314 # 314
+dt          = 31.4 # 314
 ghost_zones = 0             # 1 == include ghost zones in output
 
 <time>
 cfl_number  = 0.3       # The Courant, Friedrichs, & Lewy (CFL) Number
-nlim        = -1        # cycle limit
-tlim        = 31400 # 31400      # time limit
+nlim        = -1 # 5        # cycle limit
+tlim        = 3140 # 3140 # 31400      # time limit
 integrator  = vl2       # time integration algorithm
 xorder      = 2         # order of spatial reconstruction
-ncycle_out  = 100000 # 1         # interval for stdout summary info
+ncycle_out  = 1 # 1000000 # 1         # interval for stdout summary info
 
 <mesh> # (x1,x2,x3) = (R, phi, z)
-nx1         = 128            # Number of zones in X1-direction
+nx1         = 80 # 128            # Number of zones in X1-direction
 x1min       = 0.3 # 0.5 # 0.4            # minimum value of X1
 x1max       = 3.68 # 3.68 # 2.5 # 2.0            # maximum value of X1
 ix1_bc      = user           # Inner-X1 boundary condition flag
 ox1_bc      = user           # Outer-X1 boundary condition flag
 # for logarithmic spacing, use x1rat = (x1max/x1min)^(1/nx1)
 # (raises warning if >1.1)
-x1rat       = 1.01977808858         # non-uniform grid ratio
+x1rat       = 1.03183221291 # 1.01977808858         # non-uniform grid ratio
 
-nx2         = 384            # Number of zones in X2-direction
+nx2         = 80 # 384            # Number of zones in X2-direction
 x2min       = 0.             # minimum value of X2
 x2max       = 6.2831853071795862   # maximum value of X2
 ix2_bc      = periodic       # Inner-X2 boundary condition flag
@@ -61,8 +61,8 @@ ox3_bc      = periodic       # Outer-X3 boundary condition flag
 refinement  = None
 
 <meshblock>
-nx1        = 16 # 20         # Number of zones in X1-direction in one MeshBlock
-nx2        = 16 # 20          # Number of zones in X2-direction in one MeshBlock
+nx1        = 20 # 16         # Number of zones in X1-direction in one MeshBlock
+nx2        = 20 # 16          # Number of zones in X2-direction in one MeshBlock
 nx3        = 1         # Number of zones in X3-direction in one MeshBlock
 
 <hydro>
@@ -96,11 +96,11 @@ b = 0.05 # 0.03 # gravitational softening radius
 ## wave-killing zone parameters
 r_in = 0.3 # 0.3 # 0.4 # 0.5
 r_out = 3.68 # 3.68 # 2.5 # 2.0
-r_iwkz = 0.7 # 0.46 # 0.5 # 0.7
+r_iwkz = 0.46 # 0.5 # 0.7
 r_owkz = 3.0 # 3.0 # 2.1 # 1.6
-tau_coeff = 3.33e-2 # 6.7e-3 # 0.0333 # 0.2 # 1. # damping timescale tau = tau_coeff/Omega_K
+tau_coeff = 3.33e-2 # 0.0333 # 0.2 # 1. # damping timescale tau = tau_coeff/Omega_K
 only_damp_vr = 1 # 1 = true (if 0, also damp Sigma and vphi)
 
 ## viscosity parameters
-alpha_const = 0.05 # 1.e-2 # 0.2 # 4.e-3   # viscosity parameter
+alpha_const = 0.2 # 0.05 # 1.e-2 # 0.2 # 4.e-3   # viscosity parameter
 nu_iso = 0.2  # not used, but NEEDS to be nonzero for Athena++ to actually turn on viscosity
