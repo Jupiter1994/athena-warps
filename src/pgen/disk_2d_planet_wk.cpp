@@ -268,8 +268,6 @@ void Mesh::UserWorkInLoop() {
 	// index of z-coordinate (in 2D)
 	int k = pmb->ks; 
 	
-	global_N_phi = pmb->pmy_mesh->mesh_size.nx2;
-
 	// calculate contributions to vrs_avg in inner wave-killing zone
 	for (int i=pmb->is; i<=pmb->ie; i++) {
 	  r = pmb->pcoord->x1v(i);
@@ -504,6 +502,7 @@ void WaveKilling(MeshBlock *pmb, const Real time, const Real dt,
             global_i = (pmb->loc.lx1 * pmb->block_size.nx1) + (i - pmb->is);
 	    // if vr_avg of r_in hasn't been set, skip damping
 	    if (vrs_avg[global_i] == 0.) break;
+	    // 9/24/26: damping to 0 doesn't work
 	    vr_tgt = vrs_avg[global_i];
 
             tau = tau_coeff * std::pow(r/r0, 1.5) / std::sqrt(gm0);

@@ -62,6 +62,8 @@ void VelSphToCart(Real theta, Real phi, Real vr, Real vtheta, Real vphi,
 	       	Real &vx, Real &vy, Real &vz);
 void VelCartToSph(Real theta, Real phi, Real vx, Real vy, Real vz,
                 Real &vr, Real &vtheta, Real &vphi);
+// helper function for wave-killing
+Real R_wavekill(Real r); 
 }
 namespace {
 // problem parameters which are useful to make global to this file
@@ -72,6 +74,10 @@ Real Omega0;
 Real alpha_const; // alpha viscosity parameter
 Real r_in, r_out; // inner and outer radii of disk
 Real q, b; // planet mass ratio and softening radius, respectively
+
+// array containing the vr (averaged over solid angle) at every
+// radius; 1024 is an arbitrary size and should be > N_r
+Real vrs_avg[1024] = {}; // set all elements to 0
 
 // wave-killing parameters
 // interior boundaries of inner and outer wave-killing zones
@@ -113,6 +119,12 @@ void alpha_viscosity(HydroDiffusion *phdif, MeshBlock *pmb,
               const AthenaArray<Real> &prim,const AthenaArray<Real> &bcc,
               int is, int ie, int js, int je,int ks, int ke);
 void PlanetPotential(MeshBlock *pmb, const Real time, const Real dt,
+              const AthenaArray<Real> &prim, const AthenaArray<Real> &prim_scalar,
+              const AthenaArray<Real> &bcc, AthenaArray<Real> &cons,
+              AthenaArray<Real> &cons_scalar);
+void WaveKilling(MeshBlock *pmb, const Real time, const Real dt,
+              const AthenaArray<Real> &prim, AthenaArray<Real> &cons);
+void MySourceTerms(MeshBlock *pmb, const Real time, const Real dt,
               const AthenaArray<Real> &prim, const AthenaArray<Real> &prim_scalar,
               const AthenaArray<Real> &bcc, AthenaArray<Real> &cons,
               AthenaArray<Real> &cons_scalar);
@@ -207,16 +219,17 @@ void Mesh::InitUserMeshData(ParameterInput *pin) {
 
   // enroll user-defined functions
   EnrollViscosityCoefficient(alpha_viscosity);
-  EnrollUserExplicitSourceFunction(PlanetPotential);
+  // below function includes both planet potential + wave-killing
+  EnrollUserExplicitSourceFunction(MySourceTerms);
 
   // save L_in and debugging variables to history file
-  AllocateUserHistoryOutput(6);
-  EnrollUserHistoryOutput(0, L_in_component, "Lx_in");
-  EnrollUserHistoryOutput(1, L_in_component, "Ly_in");
-  EnrollUserHistoryOutput(2, L_in_component, "Lz_in");
-  EnrollUserHistoryOutput(3, L_out_component, "Lx_out");
-  EnrollUserHistoryOutput(4, L_out_component, "Ly_out");
-  EnrollUserHistoryOutput(5, L_out_component, "Lz_out");
+  //AllocateUserHistoryOutput(6);
+  //EnrollUserHistoryOutput(0, L_in_component, "Lx_in");
+  //EnrollUserHistoryOutput(1, L_in_component, "Ly_in");
+  //EnrollUserHistoryOutput(2, L_in_component, "Lz_in");
+  //EnrollUserHistoryOutput(3, L_out_component, "Lx_out");
+  //EnrollUserHistoryOutput(4, L_out_component, "Ly_out");
+  //EnrollUserHistoryOutput(5, L_out_component, "Lz_out");
   // debugging output
   //EnrollUserHistoryOutput(3, Num_inner_cells, "Ncells_in");
   //EnrollUserHistoryOutput(4, get_M_in, "M_in");
@@ -314,6 +327,20 @@ void Mesh::UserWorkInLoop() {
   // process, NOT the whole sim domain)
   // WARNING: L is in Cartesian coordinates.
   Real mesh_L_in[3] = {0.0, 0.0, 0.0};
+  
+  /* variables used for calculating vrs_avg */
+  // this mesh's contribution to the global vrs_avg array
+  constexpr int vrs_avg_size = sizeof(vrs_avg) / sizeof(vrs_avg[0]);
+  Real mesh_vrs_avg[vrs_avg_size] = {}; // set all elements to 0
+  int global_i; // global radial index
+  // global number of theta and phi cells
+  int global_N_theta = mesh_size.nx2;
+  int global_N_phi = mesh_size.nx3;
+
+  // debugging
+  //printf("global_N_phi = %.1e \n", global_N_phi);
+  //printf("global_N_theta = %.1e \n", global_N_theta);
+  
   // variables that are updated for every MeshBlock (mb) 
   Real den;
   Real r, theta, phi, vr, vtheta, vphi;
@@ -325,12 +352,51 @@ void Mesh::UserWorkInLoop() {
   //Real mesh_Ncells_in = 0; // number of cells at r_in (this mesh)
   //Real mesh_M_in = 0; // mass at r_in (this mesh)
   Real mesh_N_mbs = nblocal; // number of MeshBlocks (this mesh)
-  
-  // this loop calculates this mesh's contribution to L(r_in)
+ 
+  // this loop calculates this mesh's contribution to vrs_avg
   for (int b=0; b<nblocal; ++b) {
     MeshBlock *pmb = my_blocks(b);
     // primitive variables
-    //AthenaArray<Real> &w = pmb->phydro->w;
+    AthenaArray<Real> &w = pmb->phydro->w;
+
+    // indices of theta and phi boundaries
+    int jl = pmb->js, ju = pmb->je;
+    int kl = pmb->ks, ku = pmb->ke;
+
+    //global_N_phi = pmb->pmy_mesh->mesh_size.nx3;
+
+    // calculate contributions to vrs_avg in inner wave-killing zone
+    for (int i=pmb->is; i<=pmb->ie; i++) {
+    	r = pmb->pcoord->x1v(i);
+    	if (r > r_iwkz) 
+            break;
+    	global_i = (pmb->loc.lx1 * pmb->block_size.nx1) + (i - pmb->is);
+    	for (int j=jl; j<=ju; j++) {
+            for (int k=kl; k<=ku; k++) {
+	    	mesh_vrs_avg[global_i] += w(IM1,k,j,i);
+    	    }
+	}
+    //printf("ju-th IM1 (inner wkz) = %.1e \n", w(IM1,k,ju,i));
+    //printf("mesh_vrs_avg[i] (inner wkz) = %.1e \n", mesh_vrs_avg[i]);
+    } // end i loop (inner wkz)
+
+    // calculate contributions to vrs_avg in outer wave-killing zone
+    for (int i=pmb->ie; i>=pmb->is; i--) {
+        r = pmb->pcoord->x1v(i);
+        if (r < r_owkz)
+            break;
+        global_i = (pmb->loc.lx1 * pmb->block_size.nx1) + (i - pmb->is);
+        for (int j=jl; j<=ju; j++) {
+            for (int k=kl; k<=ku; k++) {
+                mesh_vrs_avg[global_i] += w(IM1,k,j,i);
+            }
+        }
+    } // end i loop (outer wkz)
+  } // end b loop (vrs_avg) 
+
+  // this loop calculates this mesh's contribution to L(r_in)
+  for (int b=0; b<nblocal; ++b) {
+    MeshBlock *pmb = my_blocks(b);
     // conserved variables
     AthenaArray<Real> &u = pmb->phydro->u;
 
@@ -401,10 +467,13 @@ void Mesh::UserWorkInLoop() {
     // debugging
     // printf("mesh_Ncells_in= %.1f \n", mesh_Ncells_in);
 
-  } // end of loop within mesh
+  } // end b loop (L_in)
 
-  // send L_in to all cores/processes
   #ifdef MPI_PARALLEL
+      // send vrs_avg to all cores/processes
+      MPI_Allreduce(&mesh_vrs_avg, &vrs_avg, vrs_avg_size, \
+		      MPI_ATHENA_REAL, MPI_SUM, MPI_COMM_WORLD);
+      // send L_in to all cores/processes
       MPI_Allreduce(&mesh_L_in, &L_in, 3, MPI_ATHENA_REAL, MPI_SUM, MPI_COMM_WORLD);
       //MPI_Allreduce(&mesh_Ncells_in, &num_inner_cells, 1, MPI_ATHENA_REAL, MPI_SUM, MPI_COMM_WORLD);
       //MPI_Allreduce(&mesh_M_in, &M_in, 1, MPI_ATHENA_REAL, MPI_SUM, MPI_COMM_WORLD);
@@ -423,12 +492,26 @@ void Mesh::UserWorkInLoop() {
       //printf("parallelized, mesh_Ncells_in= %.1f \n", mesh_Ncells_in);
       //printf("num_inner_cells= %.1f \n", num_inner_cells);
   #else // if only using one core
+      std::copy(mesh_vrs_avg, mesh_vrs_avg+vrs_avg_size, vrs_avg);
       std::copy(mesh_L_in, mesh_L_in+3, L_in);
       // L_in = mesh_L_in; // sloppy imo
       //num_inner_cells = mesh_Ncells_in;
-      printf("1 core, num_inner_cells= %.1f \n", mesh_Ncells_in);
+      // printf("1 core, num_inner_cells= %.1f \n", mesh_Ncells_in);
   #endif
 
+  // debugging
+  // printf("vrs_avg[1] = %.1e \n", vrs_avg[1]);
+
+  // take average of vr over (theta, phi)
+  for (int idx = 0; idx < vrs_avg_size; idx++) {
+      vrs_avg[idx] /= (global_N_theta*global_N_phi);
+  }
+
+  // debugging
+  //printf("global_N_phi = %.1e \n", global_N_phi);
+  //printf("global_N_theta = %.1e \n", global_N_theta);
+  //printf("mesh_vrs_avg[1] = %.1e \n", mesh_vrs_avg[1]);
+  //printf("vrs_avg[1] = %.1e \n", vrs_avg[1]);
   return;
 }
 
@@ -577,7 +660,59 @@ void PlanetPotential(MeshBlock *pmb, const Real time, const Real dt,
     return;
 }
 
+//----------------------------------------------------------------------------------------
+//! source term function for wave-killing at the domain boundaries (adapted from
+// Dempsey+ 2020, Eq. 59) --- adapted from Claude's implementation
+void WaveKilling(MeshBlock *pmb, const Real time, const Real dt,
+               const AthenaArray<Real> &prim, AthenaArray<Real> &cons) {
 
+    if (std::strcmp(COORDINATE_SYSTEM, "spherical_polar") != 0) return;
+
+    Real r; // radius
+    Real Sigma, vr; 
+    Real vr_tgt; // target value to damp to
+    Real tau; // local damping timescale for wave-killing
+    Real R_r; // wave-killing kernel
+    Real damp_term; // used for damping; has the form 1-e^(-R(r)*dt/tau)
+    int global_i; // global radial index
+
+    for (int i=pmb->is; i<=pmb->ie; ++i) {
+        r = pmb->pcoord->x1v(i);
+        R_r = R_wavekill(r);
+        if (R_r == 0.0) continue;  // outside both wave-killing zones
+            
+        global_i = (pmb->loc.lx1 * pmb->block_size.nx1) + (i - pmb->is);
+	// if vr_avg of r_in hasn't been set yet, skip damping
+	if (vrs_avg[global_i] == 0.) break;
+	vr_tgt = vrs_avg[global_i];
+
+        tau = tau_coeff * std::pow(r/r0, 1.5) / std::sqrt(gm0);
+	damp_term = 1. - std::exp(-R_r * dt/tau);
+	    
+	for (int j=pmb->js; j<=pmb->je; ++j) {
+	    for (int k=pmb->ks; k<=pmb->ke; ++k) {
+	   	Sigma = prim(IDN,k,j,i);
+	        vr = prim(IM1,k,j,i);
+		// exact/analytic expression for damping
+	        cons(IM1,k,j,i) += Sigma * damp_term * (vr_tgt - vr);
+	    } // end k loop
+          } // end j loop
+       } // end i loop
+    return;
+}
+
+//----------------------------------------------------------------------------------------
+//! Contains all user-defined source terms
+void MySourceTerms(MeshBlock *pmb, const Real time, const Real dt,
+               const AthenaArray<Real> &prim, const AthenaArray<Real> &prim_scalar,
+               const AthenaArray<Real> &bcc, AthenaArray<Real> &cons,
+               AthenaArray<Real> &cons_scalar) {
+    PlanetPotential(pmb, time, dt, prim, prim_scalar, bcc, cons, cons_scalar);
+    WaveKilling(pmb, time, dt, prim, cons);
+    return;
+}
+
+namespace { 
 // Helper function that "sets" the wave-killing zones.
 // Given radius r, return R(r) (as defined in Eq. 59 in Dempsey, Lee, & Lithwick 2020).
 // This function is 1 at the domain boundaries, 0 at the interior wave-killing zone
@@ -593,7 +728,7 @@ Real R_wavekill(Real r) {
 
     return R_r;
 }
-
+} // helper function for wave-killing
 
 
 /*
@@ -957,20 +1092,6 @@ void DiskInnerX1(MeshBlock *pmb,Coordinates *pco, AthenaArray<Real> &prim, FaceF
 	GetZfromL(r_ac, theta, phi, L_in, z_ac);
 	//rad = std::sqrt(r*r - z*z); 
 	
-	// damp vr in wave-killing zones
-	for (int i=il; i<=iu; ++i) {
-	  r = pco->x1v(i);
-	  // exit loop once we're outside wave-killing zone
-	  if (r > r_iwkz)
-	    break;
-	  vr = prim(IM1,k,j,i);
-	  // tau = tau_coeff / Omega_K
-	  tau = tau_coeff * std::pow(r/r0, 1.5) / std::pow(gm0, 0.5); 
-	  // vr += dt*(-(vr - 0.) / tau) * R_wavekill(r); // damp to 0 (Eulerian)
-	  vr *= std::exp(-R_wavekill(r)/tau * dt); // damp to 0 (analytic)
-	  prim(IM1,k,j,i) = vr;
-	}
-
 	// set ghost cell values
 	for (int i=1; i<=ngh; ++i) {
 	  r_gh = pco->x1v(il-i);
@@ -1078,19 +1199,6 @@ void DiskOuterX1(MeshBlock *pmb,Coordinates *pco, AthenaArray<Real> &prim, FaceF
       for (int j=jl; j<=ju; ++j) {
         theta = pco->x2v(j);
 	
-	// damp vr in wave-killing zones
-        for (int i=iu; i>=il; --i) {
-          r = pco->x1v(i);
-          // exit loop once we're outside wave-killing zone
-          if (r < r_owkz)
-            break;
-          vr = prim(IM1,k,j,i);
-          // tau = tau_coeff / Omega_K
-          tau = tau_coeff * std::pow(r/r0, 1.5) / std::pow(gm0, 0.5);
-          vr += dt*(-(vr - 0.) / tau) * R_wavekill(r);
-          prim(IM1,k,j,i) = vr;
-        }
-
 	// set ghost cell values
 	for (int i=1; i<=ngh; ++i) {
           //GetCylCoord(pco,rad_gh,phi,z_gh,iu+i,j,k);
@@ -1115,10 +1223,10 @@ void DiskOuterX1(MeshBlock *pmb,Coordinates *pco, AthenaArray<Real> &prim, FaceF
           prim(IM3,k,j,iu+i) = vphi; // VelProfileCyl(rad_gh,phi,z_gh); // v_phi
           if (NON_BAROTROPIC_EOS)
             prim(IEN,k,j,iu+i) = PoverR(rad, phi, z)*prim(IDN,k,j,iu+i);
-        }
-      }
-    }
-  }
+        } // end i loop
+      } // end j loop 
+    } // end k loop
+  } // end spherical_polar block
 }
 
 //----------------------------------------------------------------------------------------
