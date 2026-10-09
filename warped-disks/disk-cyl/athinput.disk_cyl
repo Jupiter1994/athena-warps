@@ -4,14 +4,14 @@ reference =
 configure = --prob=disk_3d_basic_BCs --coord=cylindrical
 
 <job>
-problem_id  = /scratch/phn2956/disk-cyl17b/disk      # problem ID: basename of output filenames
+problem_id  = /scratch/phn2956/disk-cyl16/disk      # problem ID: basename of output filenames
 
 <output1>
 file_type   = hdf5       # HDF5 data dump
 variable    = prim      #
-dt          = 314 # 62.8      # 1  # time increment between outputs
+dt          = 31.4 # 62.8      # 1  # time increment between outputs
 # do NOT include ghost zones if using non-uniform grid spacing
-ghost_zones = 1 # 0         # 1 == includes ghost zones in output
+ghost_zones = 0 # 0         # 1 == includes ghost zones in output
 
 <output2>
 file_type   = hst       # History data dump
@@ -19,21 +19,21 @@ dt          = 6.28    # time increment between outputs
 
 <output3>
 file_type   = rst      # Restart data dump
-dt 	    = 6280     # time increment between outputs
+dt 	    = 3140     # time increment between outputs
 
 <output4>
 file_type   = hdf5
 variable    = user_out_var  # (or ``uov''; user-defined output variables)
-dt          = 314 # 62.8
+dt          = 31.4 # 62.8
 ghost_zones = 0             # 1 == include ghost zones in output
 
 <time>
 cfl_number  = 0.3       # The Courant, Friedrichs, & Lewy (CFL) Number
 nlim        = -1        # cycle limit
-tlim        = 31400 # 3140. #      # time limit
+tlim        = 3140 # 3140. #      # time limit
 integrator  = vl2       # time integration algorithm
 xorder      = 2         # order of spatial reconstruction
-ncycle_out  = 1 # 100        # interval for stdout summary info
+ncycle_out  = 1000 # 100        # interval for stdout summary info
 
 <mesh> # (x1,x2,x3) = (R, phi, z)
 nx1         = 80 # 128            # Number of zones in X1-direction
