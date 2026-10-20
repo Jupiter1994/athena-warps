@@ -64,6 +64,10 @@ void VelCartToSph(Real theta, Real phi, Real vx, Real vy, Real vz,
                 Real &vr, Real &vtheta, Real &vphi);
 // helper function for wave-killing
 Real R_wavekill(Real r); 
+// functions for reading a gap profile from a text file
+void Load_gap_Table(const std::string& fname);
+Real gap_from_Table(Real r);
+
 }
 namespace {
 // problem parameters which are useful to make global to this file
@@ -75,9 +79,10 @@ Real alpha_const; // alpha viscosity parameter
 Real r_in, r_out; // inner and outer radii of disk
 Real q, b; // planet mass ratio and softening radius, respectively
 
-// array containing the vr (averaged over solid angle) at every
-// radius; 1024 is an arbitrary size and should be > N_r
+// arrays containing the (mass-weighted-average) v_r(r) and
+// Sigma(r); 1024 is an arbitrary size and should be > N_r
 Real vrs_avg[1024] = {}; // set all elements to 0
+Real Sigmas_avg[1024] = {}; // set all elements to 0
 
 // wave-killing parameters
 // interior boundaries of inner and outer wave-killing zones
@@ -93,6 +98,11 @@ Real N_mbs; // (global) number of MeshBlocks in the sim
 //Real M_in; // mass contained in shell at r_in
 Real L_in[3] = {0.0, 0.0, 1.0}; // ang mom vector (Cartesian) at r_in
 Real L_out[3] = {0.0, 0.0, 1.0}; // ang mom vector (Cartesian) at r_out
+
+// parameters for reading in gap profile
+std::vector<Real> gap_table_r;
+std::vector<Real> gap_table_val;
+std::string gap_file;
 } 
 
 // User-defined boundary conditions for disk simulations
@@ -191,6 +201,8 @@ void Mesh::InitUserMeshData(ParameterInput *pin) {
   L_out[0] = -std::sin(W_out);
   L_out[2] = std::cos(W_out);
 
+  gap_file  = pin->GetOrAddString("problem", "gap_profile_file", "gap_Profile.dat");
+
   // used for debugging Lhat calculation
  // num_inner_cells = 0;
  // M_in = 0;
@@ -258,6 +270,8 @@ void MeshBlock::ProblemGenerator(ParameterInput *pin) {
   Real gap_R; // density gap profile
   Real W_in, W_r; // initial tilt at r_in and arbitrary radius r, respectively
 
+  Load_gap_Table(gap_file);
+
   OrbitalVelocityFunc &vK = porb->OrbitalVelocity;
   //  Initialize density and momenta
   for (int k=ks; k<=ke; ++k) {
@@ -291,7 +305,10 @@ void MeshBlock::ProblemGenerator(ParameterInput *pin) {
         }
 	// get background values of density and velocity
         GetDenVelTilted(r, theta, phi, W_r, den, vr, vtheta, vphi);
-	den /= gap_R; // apply gap profile
+	
+	// apply gap profile
+	gap_R = gap_from_Table(r); // try initializing Sigma using 2D result
+	den /= gap_R; 
 
 	if (porb->orbital_advection_defined)
             vel -= vK(porb, r, theta, phi);
@@ -332,6 +349,7 @@ void Mesh::UserWorkInLoop() {
   // this mesh's contribution to the global vrs_avg array
   constexpr int vrs_avg_size = sizeof(vrs_avg) / sizeof(vrs_avg[0]);
   Real mesh_vrs_avg[vrs_avg_size] = {}; // set all elements to 0
+  Real mesh_Sigmas_avg[vrs_avg_size] = {};
   int global_i; // global radial index
   // global number of theta and phi cells
   int global_N_theta = mesh_size.nx2;
@@ -357,7 +375,9 @@ void Mesh::UserWorkInLoop() {
   for (int b=0; b<nblocal; ++b) {
     MeshBlock *pmb = my_blocks(b);
     // primitive variables
-    AthenaArray<Real> &w = pmb->phydro->w;
+    // AthenaArray<Real> &w = pmb->phydro->w;
+    // conservative variables
+    AthenaArray<Real> &u = pmb->phydro->u;
 
     // indices of theta and phi boundaries
     int jl = pmb->js, ju = pmb->je;
@@ -373,7 +393,9 @@ void Mesh::UserWorkInLoop() {
     	global_i = (pmb->loc.lx1 * pmb->block_size.nx1) + (i - pmb->is);
     	for (int j=jl; j<=ju; j++) {
             for (int k=kl; k<=ku; k++) {
-	    	mesh_vrs_avg[global_i] += w(IM1,k,j,i);
+		// phydro->u are the conserved variables 
+		mesh_Sigmas_avg[global_i] += u(IDN,k,j,i);
+	    	mesh_vrs_avg[global_i] += u(IM1,k,j,i);
     	    }
 	}
     //printf("ju-th IM1 (inner wkz) = %.1e \n", w(IM1,k,ju,i));
@@ -388,7 +410,8 @@ void Mesh::UserWorkInLoop() {
         global_i = (pmb->loc.lx1 * pmb->block_size.nx1) + (i - pmb->is);
         for (int j=jl; j<=ju; j++) {
             for (int k=kl; k<=ku; k++) {
-                mesh_vrs_avg[global_i] += w(IM1,k,j,i);
+		mesh_Sigmas_avg[global_i] += u(IDN,k,j,i);
+                mesh_vrs_avg[global_i] += u(IM1,k,j,i);
             }
         }
     } // end i loop (outer wkz)
@@ -470,7 +493,9 @@ void Mesh::UserWorkInLoop() {
   } // end b loop (L_in)
 
   #ifdef MPI_PARALLEL
-      // send vrs_avg to all cores/processes
+      // send avg arrays to all cores/processes
+      MPI_Allreduce(&mesh_Sigmas_avg, &Sigmas_avg, vrs_avg_size, \
+                      MPI_ATHENA_REAL, MPI_SUM, MPI_COMM_WORLD);
       MPI_Allreduce(&mesh_vrs_avg, &vrs_avg, vrs_avg_size, \
 		      MPI_ATHENA_REAL, MPI_SUM, MPI_COMM_WORLD);
       // send L_in to all cores/processes
@@ -492,6 +517,7 @@ void Mesh::UserWorkInLoop() {
       //printf("parallelized, mesh_Ncells_in= %.1f \n", mesh_Ncells_in);
       //printf("num_inner_cells= %.1f \n", num_inner_cells);
   #else // if only using one core
+      std::copy(mesh_Sigmas_avg, Sigmas_avg+vrs_avg_size, Sigmas_avg);
       std::copy(mesh_vrs_avg, mesh_vrs_avg+vrs_avg_size, vrs_avg);
       std::copy(mesh_L_in, mesh_L_in+3, L_in);
       // L_in = mesh_L_in; // sloppy imo
@@ -502,9 +528,12 @@ void Mesh::UserWorkInLoop() {
   // debugging
   // printf("vrs_avg[1] = %.1e \n", vrs_avg[1]);
 
-  // take average of vr over (theta, phi)
   for (int idx = 0; idx < vrs_avg_size; idx++) {
-      vrs_avg[idx] /= (global_N_theta*global_N_phi);
+      // take weighted average of vr over (theta, phi)
+      // (at this point, Sigmas_avg still holds the *total* Sigma at
+      // each radius)
+      if (Sigmas_avg[idx] > 0) vrs_avg[idx] /= Sigmas_avg[idx];
+      Sigmas_avg[idx] /= (global_N_theta*global_N_phi);
   }
 
   // debugging
@@ -1027,6 +1056,38 @@ Real PoverR(const Real rad, const Real phi, const Real z) {
   Real poverr;
   poverr = p0_over_r0*std::pow(rad/r0, pslope);
   return poverr;
+}
+
+// computes gap profile
+// Load gap profile from file
+void Load_gap_Table(const std::string& fname) {
+  std::ifstream file(fname);
+  if (!file.is_open()) {
+    std::cerr << "Failed to open gap table file: " << fname << std::endl;
+    std::exit(EXIT_FAILURE);
+  }
+  Real r, gap_Prof;
+  while (file >> r >> gap_Prof) {
+    gap_table_r.push_back(r);
+    gap_table_val.push_back(1. / gap_Prof);
+  }
+  file.close();
+}
+
+// Linear interpolation for gap profile
+Real gap_from_Table(Real r) {
+  int n = gap_table_r.size();
+  if (r <= gap_table_r.front()) return gap_table_val.front();
+  if (r >= gap_table_r.back())  return gap_table_val.back();
+
+  for (int i = 0; i < n - 1; ++i) {
+    if (r >= gap_table_r[i] && r <= gap_table_r[i + 1]) {
+      Real r1 = gap_table_r[i], r2 = gap_table_r[i + 1];
+      Real gap1 = gap_table_val[i], gap2 = gap_table_val[i + 1];
+      return gap1 + (gap2 - gap1) * (r - r1) / (r2 - r1);
+    }
+  }
+  return gap_table_val.back(); // should not reach here
 }
 
 //----------------------------------------------------------------------------------------

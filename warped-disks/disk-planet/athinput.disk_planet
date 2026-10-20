@@ -4,7 +4,7 @@ reference =
 configure = --prob=disk_planet --coord=spherical_polar
 
 <job>
-problem_id  = /scratch/phn2956/disk-planet6c/disk      # problem ID: basename of output filenames
+problem_id  = /scratch/phn2956/disk-planet8b/disk      # problem ID: basename of output filenames
 
 <output1> 
 file_type   = hdf5      # default: vtk output
@@ -14,7 +14,7 @@ ghost_zones = 0         # default = 0/false (ie, don't include ghost zones)
 
 <output2>
 file_type   = hst       # History data dump
-dt          = 3.14      # 3.14    # time increment between outputs
+dt          = .314      # 3.14    # time increment between outputs
 
 <output3>
 file_type   = rst       # Restart data dump
@@ -36,13 +36,13 @@ ncycle_out  = 10000         # interval for stdout summary info
 
 <mesh> # (x1,x2,x3) = (R, theta, phi)
 nx1         = 128       # Number of zones in X1-direction
-x1min       = 0.5       # minimum value of X1
-x1max       = 2.0       # 2.0       # maximum value of X1
+x1min       = 0.3       # minimum value of X1
+x1max       = 3.68       # 2.0       # maximum value of X1
 ix1_bc      = user      # Inner-X1 boundary condition flag
 ox1_bc      = user      # Outer-X1 boundary condition flag
 # for logarithmic spacing, use x1rat = (x1max/x1min)^(1/nx1)
 # (raises warning if >1.1)
-x1rat       = 1.01088928605         # non-uniform grid ratio
+x1rat       = 1.01977808858 # 1.01088928605         # non-uniform grid ratio
 
 nx2         = 128        # Number of zones in X2-direction
 # theta half-width = 5c_s = 0.25; pi/2 = 1.5708; extend both limits by W_out
@@ -60,8 +60,8 @@ ox3_bc      = periodic       # Outer-X3 boundary condition flag
 # refinement  = None
 
 <meshblock>
-nx1        = 32        # Number of zones per MeshBlock in X1-direction
-nx2        = 32        # Number of zones per MeshBlock in X2-direction
+nx1        = 16        # Number of zones per MeshBlock in X1-direction
+nx2        = 16        # Number of zones per MeshBlock in X2-direction
 nx3        = 32        # Number of zones per MeshBlock in X3-direction
 
 <hydro>
@@ -91,7 +91,7 @@ W_out       = 0. # 0.04 # 0.1 # note: I rotate disk around the y-axis in +z dire
 
 ## Shakura-Sunyaev viscosity parameter
 # alpha_0 = 0.001
-alpha_const = 0.2 # 0.01 # 0.05
+alpha_const = 0.01 # 0.2 # 0.05
 
 ## params for "basic" gap profile
 R_gap = 1.0 # center of gap
@@ -100,14 +100,14 @@ depth_gap = 1.0 # 2.0 # depth of gap
 
 ## planet parameters
 q = 1.e-3 # 0.002 # mass ratio
-b = 0.05 # 0.05 # gravitational softening radius
+b = 0.03 # 0.05 # gravitational softening radius
 
 ## wave-killing zone parameters
-r_in = 0.5
-r_out = 2.0
-r_iwkz = 0.7
-r_owkz = 1.6
-tau_coeff = 0.0333 # 0.2 # 1.  # damping timescale tau = tau_coeff / Omega_K
+r_in = 0.3
+r_out = 3.68
+r_iwkz = 0.46
+r_owkz = 3.0
+tau_coeff = 0.0333 # 1. # 0.2  # damping timescale tau = tau_coeff / Omega_K
 
 ## below params are for the more complex gap profile
 # depth_gap = 19.0
