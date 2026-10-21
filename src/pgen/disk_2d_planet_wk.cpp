@@ -259,9 +259,9 @@ void Mesh::UserWorkInLoop() {
     for (int b=0; b<nblocal; ++b) {
     	MeshBlock *pmb = my_blocks(b);
     	// primitive variables
-    	AthenaArray<Real> &w = pmb->phydro->w;
+    	// AthenaArray<Real> &w = pmb->phydro->w;
     	// conserved variables
-    	//AthenaArray<Real> &u = pmb->phydro->u;
+    	AthenaArray<Real> &u = pmb->phydro->u;
         
 	// indices of phi boundaries
   	int jl = pmb->js, ju = pmb->je;
@@ -275,10 +275,10 @@ void Mesh::UserWorkInLoop() {
 	    break;
 	  global_i = (pmb->loc.lx1 * pmb->block_size.nx1) + (i - pmb->is);
 	  for (int j=jl; j<=ju; j++) {
-	    mesh_vrs_avg[global_i] += w(IM1,k,j,i);
+	    mesh_vrs_avg[global_i] += u(IM1,k,j,i);
+	    mesh_Sigmas_avg[global_i] += u(IDN,k,j,i);
 	    if (!only_damp_vr) {
-	      mesh_Sigmas_avg[global_i] += w(IDN,k,j,i);
-	      mesh_vphis_avg[global_i] += w(IM2,k,j,i);
+	      mesh_vphis_avg[global_i] += u(IM2,k,j,i);
 	    }
 	  }
 	  //printf("ju-th IM1 (inner wkz) = %.1e \n", w(IM1,k,ju,i));
@@ -292,10 +292,10 @@ void Mesh::UserWorkInLoop() {
             break;
           global_i = (pmb->loc.lx1 * pmb->block_size.nx1) + (i - pmb->is);
 	  for (int j=jl; j<=ju; j++) {
-            mesh_vrs_avg[global_i] += w(IM1,k,j,i);
-            if (!only_damp_vr) {
-              mesh_Sigmas_avg[global_i] += w(IDN,k,j,i);
-              mesh_vphis_avg[global_i] += w(IM2,k,j,i);
+            mesh_vrs_avg[global_i] += u(IM1,k,j,i);
+            mesh_Sigmas_avg[global_i] += u(IDN,k,j,i);
+	    if (!only_damp_vr) {
+              mesh_vphis_avg[global_i] += u(IM2,k,j,i);
             }
 	  }
         }
@@ -305,27 +305,29 @@ void Mesh::UserWorkInLoop() {
   #ifdef MPI_PARALLEL
       MPI_Allreduce(&mesh_vrs_avg, &vrs_avg, vrs_avg_size, \
 		      MPI_ATHENA_REAL, MPI_SUM, MPI_COMM_WORLD);
-      if (!only_damp_vr) {
-        MPI_Allreduce(&mesh_Sigmas_avg, &Sigmas_avg, vrs_avg_size, \
+      MPI_Allreduce(&mesh_Sigmas_avg, &Sigmas_avg, vrs_avg_size, \
                       MPI_ATHENA_REAL, MPI_SUM, MPI_COMM_WORLD);
-	MPI_Allreduce(&mesh_vphis_avg, &vphis_avg, vrs_avg_size, \
+      if (!only_damp_vr) {
+	  MPI_Allreduce(&mesh_vphis_avg, &vphis_avg, vrs_avg_size, \
                       MPI_ATHENA_REAL, MPI_SUM, MPI_COMM_WORLD);
       }
   #else // if only using one core
       std::copy(mesh_vrs_avg, mesh_vrs_avg+vrs_avg_size, vrs_avg);
+      std::copy(mesh_Sigmas_avg, mesh_Sigmas_avg+vrs_avg_size, Sigmas_avg);
       if (!only_damp_vr) {
-        std::copy(mesh_Sigmas_avg, mesh_Sigmas_avg+vrs_avg_size, Sigmas_avg);
         std::copy(mesh_vphis_avg, mesh_vphis_avg+vrs_avg_size, vphis_avg);
       }
   #endif
 
-  // take azimuthal average of vr
+  // take (mass-weighted) azimuthal average of vr
   for (int idx = 0; idx < vrs_avg_size; idx++) {
-      vrs_avg[idx] /= global_N_phi;
-      if (!only_damp_vr) {
-        Sigmas_avg[idx] /= global_N_phi;
-        vphis_avg[idx] /= global_N_phi;
+      if (Sigmas_avg[idx] > 0.) {
+	  // divide \int(p_r) by \int(Sigma)
+	  vrs_avg[idx] /= Sigmas_avg[idx];
+      	  if (!only_damp_vr) 
+              vphis_avg[idx] /= Sigmas_avg[idx];
       }
+      Sigmas_avg[idx] /= global_N_phi;
   }
   //printf("mesh_vrs_avg[10] = %.1e \n", mesh_vrs_avg[10]);
   //printf("vrs_avg[10] = %.1e \n", vrs_avg[10]);

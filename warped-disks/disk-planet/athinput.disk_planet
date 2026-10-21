@@ -4,7 +4,7 @@ reference =
 configure = --prob=disk_planet --coord=spherical_polar
 
 <job>
-problem_id  = /scratch/phn2956/disk-planet8b/disk      # problem ID: basename of output filenames
+problem_id  = /scratch/phn2956/disk-planet9/disk      # problem ID: basename of output filenames
 
 <output1> 
 file_type   = hdf5      # default: vtk output
@@ -46,8 +46,8 @@ x1rat       = 1.01977808858 # 1.01088928605         # non-uniform grid ratio
 
 nx2         = 128        # Number of zones in X2-direction
 # theta half-width = 5c_s = 0.25; pi/2 = 1.5708; extend both limits by W_out
-x2min       = 1.3208    # 1.2808    # minimum value of X2
-x2max       = 1.8208    # 1.8608    # maximum value of X2
+x2min       = 1.2208    # 1.3208    # minimum value of X2
+x2max       = 1.9208    # 1.8208    # maximum value of X2
 ix2_bc      = reflecting      # Inner-X2 boundary condition flag
 ox2_bc      = reflecting      # Outer-X2 boundary condition flag
 
@@ -87,7 +87,7 @@ xi_1        = 0.0
 xi_2        = 0.0
 
 ## Outer disk inclination
-W_out       = 0. # 0.04 # 0.1 # note: I rotate disk around the y-axis in +z direction
+W_out       = 0.1 # 0.04 # 0. # note: I rotate disk around the y-axis in +z direction
 
 ## Shakura-Sunyaev viscosity parameter
 # alpha_0 = 0.001

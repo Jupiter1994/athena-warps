@@ -83,6 +83,8 @@ Real q, b; // planet mass ratio and softening radius, respectively
 // Sigma(r); 1024 is an arbitrary size and should be > N_r
 Real vrs_avg[1024] = {}; // set all elements to 0
 Real Sigmas_avg[1024] = {}; // set all elements to 0
+// surface ``integral'' of sin(theta) (used in weighted average)
+Real int_sintheta[1024] = {};
 
 // wave-killing parameters
 // interior boundaries of inner and outer wave-killing zones
@@ -336,7 +338,9 @@ void MeshBlock::ProblemGenerator(ParameterInput *pin) {
 }
 
 // at the end of each cycle, calculate this mesh/core's total L_in, 
-// then calculate+store the global L_in
+// then calculate+store the global L_in.
+// also calculates the mass-weighted-average v_r(r) (assuming 
+// uniform spacing in theta and phi).
 void Mesh::UserWorkInLoop() {
 
   // this mesh's contribution to the ang mom (L) vector at r_in
@@ -350,6 +354,7 @@ void Mesh::UserWorkInLoop() {
   constexpr int vrs_avg_size = sizeof(vrs_avg) / sizeof(vrs_avg[0]);
   Real mesh_vrs_avg[vrs_avg_size] = {}; // set all elements to 0
   Real mesh_Sigmas_avg[vrs_avg_size] = {};
+  Real mesh_int_sintheta[vrs_avg_size] = {};
   int global_i; // global radial index
   // global number of theta and phi cells
   int global_N_theta = mesh_size.nx2;
@@ -392,11 +397,14 @@ void Mesh::UserWorkInLoop() {
             break;
     	global_i = (pmb->loc.lx1 * pmb->block_size.nx1) + (i - pmb->is);
     	for (int j=jl; j<=ju; j++) {
+	    theta = pmb->pcoord->x2v(j);
             for (int k=kl; k<=ku; k++) {
-		// phydro->u are the conserved variables 
-		mesh_Sigmas_avg[global_i] += u(IDN,k,j,i);
-	    	mesh_vrs_avg[global_i] += u(IM1,k,j,i);
-    	    }
+		// phydro->u are the conserved variables
+		// (sin(theta) factor comes from dOmega) 
+		mesh_Sigmas_avg[global_i] += u(IDN,k,j,i)*sin(theta);
+	    	mesh_vrs_avg[global_i] += u(IM1,k,j,i)*sin(theta);
+    	        mesh_int_sintheta[global_i] += sin(theta);
+	    }
 	}
     //printf("ju-th IM1 (inner wkz) = %.1e \n", w(IM1,k,ju,i));
     //printf("mesh_vrs_avg[i] (inner wkz) = %.1e \n", mesh_vrs_avg[i]);
@@ -409,9 +417,11 @@ void Mesh::UserWorkInLoop() {
             break;
         global_i = (pmb->loc.lx1 * pmb->block_size.nx1) + (i - pmb->is);
         for (int j=jl; j<=ju; j++) {
+	    theta = pmb->pcoord->x2v(j);
             for (int k=kl; k<=ku; k++) {
-		mesh_Sigmas_avg[global_i] += u(IDN,k,j,i);
-                mesh_vrs_avg[global_i] += u(IM1,k,j,i);
+		mesh_Sigmas_avg[global_i] += u(IDN,k,j,i)*sin(theta);
+                mesh_vrs_avg[global_i] += u(IM1,k,j,i)*sin(theta);
+                mesh_int_sintheta[global_i] += sin(theta);
             }
         }
     } // end i loop (outer wkz)
@@ -498,6 +508,8 @@ void Mesh::UserWorkInLoop() {
                       MPI_ATHENA_REAL, MPI_SUM, MPI_COMM_WORLD);
       MPI_Allreduce(&mesh_vrs_avg, &vrs_avg, vrs_avg_size, \
 		      MPI_ATHENA_REAL, MPI_SUM, MPI_COMM_WORLD);
+      MPI_Allreduce(&mesh_int_sintheta, &int_sintheta, vrs_avg_size, \
+                      MPI_ATHENA_REAL, MPI_SUM, MPI_COMM_WORLD);
       // send L_in to all cores/processes
       MPI_Allreduce(&mesh_L_in, &L_in, 3, MPI_ATHENA_REAL, MPI_SUM, MPI_COMM_WORLD);
       //MPI_Allreduce(&mesh_Ncells_in, &num_inner_cells, 1, MPI_ATHENA_REAL, MPI_SUM, MPI_COMM_WORLD);
@@ -519,6 +531,7 @@ void Mesh::UserWorkInLoop() {
   #else // if only using one core
       std::copy(mesh_Sigmas_avg, Sigmas_avg+vrs_avg_size, Sigmas_avg);
       std::copy(mesh_vrs_avg, mesh_vrs_avg+vrs_avg_size, vrs_avg);
+      std::copy(int_sintheta, int_sintheta+vrs_avg_size, int_sintheta);
       std::copy(mesh_L_in, mesh_L_in+3, L_in);
       // L_in = mesh_L_in; // sloppy imo
       //num_inner_cells = mesh_Ncells_in;
@@ -529,11 +542,11 @@ void Mesh::UserWorkInLoop() {
   // printf("vrs_avg[1] = %.1e \n", vrs_avg[1]);
 
   for (int idx = 0; idx < vrs_avg_size; idx++) {
-      // take weighted average of vr over (theta, phi)
-      // (at this point, Sigmas_avg still holds the *total* Sigma at
-      // each radius)
-      if (Sigmas_avg[idx] > 0) vrs_avg[idx] /= Sigmas_avg[idx];
-      Sigmas_avg[idx] /= (global_N_theta*global_N_phi);
+      // take weighted average of vr, Sigma over (theta, phi)
+      if (Sigmas_avg[idx] > 0) {
+	 vrs_avg[idx] /= Sigmas_avg[idx];
+      	 Sigmas_avg[idx] /= int_sintheta[idx];
+      }
   }
 
   // debugging
