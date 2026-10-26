@@ -105,6 +105,7 @@ Real L_out[3] = {0.0, 0.0, 1.0}; // ang mom vector (Cartesian) at r_out
 std::vector<Real> gap_table_r;
 std::vector<Real> gap_table_val;
 std::string gap_file;
+bool use_gap;
 } 
 
 // User-defined boundary conditions for disk simulations
@@ -204,6 +205,7 @@ void Mesh::InitUserMeshData(ParameterInput *pin) {
   L_out[2] = std::cos(W_out);
 
   gap_file  = pin->GetOrAddString("problem", "gap_profile_file", "gap_Profile.dat");
+  use_gap = pin->GetOrAddBoolean("problem", "use_gap", false);
 
   // used for debugging Lhat calculation
  // num_inner_cells = 0;
@@ -310,7 +312,8 @@ void MeshBlock::ProblemGenerator(ParameterInput *pin) {
 	
 	// apply gap profile
 	gap_R = gap_from_Table(r); // try initializing Sigma using 2D result
-	den /= gap_R; 
+	if (use_gap)
+	    den /= gap_R; 
 
 	if (porb->orbital_advection_defined)
             vel -= vK(porb, r, theta, phi);
