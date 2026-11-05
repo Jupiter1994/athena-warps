@@ -206,8 +206,8 @@ void Mesh::InitUserMeshData(ParameterInput *pin) {
   fix_W_in = pin->GetOrAddBoolean("problem", "fix_W_in", false); 
   W_in = pin->GetOrAddReal("problem", "W_in", 0.0);
   W_out = pin->GetOrAddReal("problem", "W_out", 0.0);
-  L_in[0] = -std::sin(W_out);
-  L_in[2] = std::cos(W_out); 
+  L_in[0] = -std::sin(W_in);
+  L_in[2] = std::cos(W_in); 
   L_out[0] = -std::sin(W_out);
   L_out[2] = std::cos(W_out);
 
@@ -286,7 +286,7 @@ void MeshBlock::ProblemGenerator(ParameterInput *pin) {
   Real vr(0.0), vtheta(0.0), vphi(0.0); // v's spherical components
   Real r, theta, phi;
   Real gap_R; // density gap profile
-  Real W_in, W_r; // initial tilt at r_in and arbitrary radius r, respectively
+  Real W_r; // initial tilt at arbitrary radius r
 
   Load_gap_Table(gap_file);
 
@@ -551,9 +551,9 @@ void Mesh::UserWorkInLoop() {
       //printf("parallelized, mesh_Ncells_in= %.1f \n", mesh_Ncells_in);
       //printf("num_inner_cells= %.1f \n", num_inner_cells);
   #else // if only using one core
-      std::copy(mesh_Sigmas_avg, Sigmas_avg+vrs_avg_size, Sigmas_avg);
+      std::copy(mesh_Sigmas_avg, mesh_Sigmas_avg+vrs_avg_size, Sigmas_avg);
       std::copy(mesh_vrs_avg, mesh_vrs_avg+vrs_avg_size, vrs_avg);
-      std::copy(int_sintheta, int_sintheta+vrs_avg_size, int_sintheta);
+      std::copy(mesh_int_sintheta, mesh_int_sintheta+vrs_avg_size, int_sintheta);
       std::copy(mesh_L_in, mesh_L_in+3, L_in);
       // L_in = mesh_L_in; // sloppy imo
       //num_inner_cells = mesh_Ncells_in;
@@ -1156,7 +1156,6 @@ void DiskInnerX1(MeshBlock *pmb,Coordinates *pco, AthenaArray<Real> &prim, FaceF
   Real z_ac; // cylindrical height at active cell
   Real r, theta; // polar coordinates
   Real den_gh, vr, vtheta, vphi; // background den, vel at ghost cell (spherical case)
-  Real W_in; // tilt at R_in
   Real vx, vy, vz; // velocity Cartesian components in sim frame
   Real vr_, vtheta_, vphi_; // velocity spherical components in disk/midplane frame
   Real tau; // local damping timescale for wave-killing
@@ -1206,7 +1205,7 @@ void DiskInnerX1(MeshBlock *pmb,Coordinates *pco, AthenaArray<Real> &prim, FaceF
 	  }	  
 	  GetZfromL(r_gh, theta, phi, L_in, z_gh);
           //rad_gh = std::sqrt(r_gh*r_gh - z_gh*z_gh);
-	  W_in = std::asin(-L_in[0] / L_in[2]); // arcsin(-L_x/L_z)
+	  W_in = std::atan2(-L_in[0], L_in[2]); // arctan(-L_x/L_z)
 	  //GetDenVelTilted(r_gh, theta, phi, W_in, den_gh, vr, vtheta, vphi);
 	  // debugging: set inner den to constant value (v_i's will get overwitten) 
 	  //GetDenVelTilted(r_gh, theta, phi, W_out, den_gh, vr, vtheta, vphi);
@@ -1327,13 +1326,14 @@ void DiskOuterX1(MeshBlock *pmb,Coordinates *pco, AthenaArray<Real> &prim, FaceF
 	  // vel = VelProfileCyl(rad,phi,z);
           if (pmb->porb->orbital_advection_defined)
             vel -= vK(pmb->porb, pco->x1v(iu+i), pco->x2v(j), pco->x3v(k));
+	  
+	  prim(IM1,k,j,iu+i) = prim(IM1,k,j,iu) * std::pow(r_gh/r_ac,-0.5);
+	  prim(IM2,k,j,iu+i) = prim(IM2,k,j,iu) * std::pow(r_gh/r_ac,-0.5);
+	  prim(IM3,k,j,iu+i) = prim(IM3,k,j,iu) * std::pow(r_gh/r_ac,-0.5);
 	  // v_r determined by steady-state accretion, not GetDenVelTilted
-          prim(IM1,k,j,iu+i) = VrProfileCyl(r_gh,phi,z_gh); // prim(IM1,k,j,iu) * std::pow(r_gh/r_ac,0.5); // v_r; assume R~r
-          //vK_gh = std::sqrt(gm0/rad_gh);
-	  //z_over_H = z_gh / std::sqrt(p0_over_r0) * (vK_gh/rad_gh); // H=cs/Omega
-          //prim(IM1,k,j,iu+i) = -alpha_const*p0_over_r0/vK_gh * (-3 + 4.5*SQR(z_over_H)); // v_r
-	  prim(IM2,k,j,iu+i) = vtheta; // 0.0; // v_theta
-          prim(IM3,k,j,iu+i) = vphi; // VelProfileCyl(rad_gh,phi,z_gh); // v_phi
+          //prim(IM1,k,j,iu+i) = VrProfileCyl(r_gh,phi,z_gh); // prim(IM1,k,j,iu) * std::pow(r_gh/r_ac,0.5); // v_r; assume R~r
+	  //prim(IM2,k,j,iu+i) = vtheta; // 0.0; // v_theta
+          //prim(IM3,k,j,iu+i) = vphi; // VelProfileCyl(rad_gh,phi,z_gh); // v_phi
           if (NON_BAROTROPIC_EOS)
             prim(IEN,k,j,iu+i) = PoverR(rad, phi, z)*prim(IDN,k,j,iu+i);
         } // end i loop
