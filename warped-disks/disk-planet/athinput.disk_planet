@@ -4,13 +4,13 @@ reference =
 configure = --prob=disk_planet --coord=spherical_polar
 
 <job>
-problem_id  = /scratch/phn2956/disk-planet10/disk      # problem ID: basename of output filenames
+problem_id  = /scratch/phn2956/disk-planet9/disk      # problem ID: basename of output filenames
 
 <output1> 
 file_type   = hdf5      # default: vtk output
 variable    = prim      # prim or cons
 dt          = 31.4      # 31.4      # time increment between outputs
-ghost_zones = 0         # default = 0/false (ie, don't include ghost zones) 
+ghost_zones = 0 # 1        # default = 0/false (ie, don't include ghost zones) 
 
 <output2>
 file_type   = hst       # History data dump
@@ -24,7 +24,7 @@ dt          = 1256 # 3140      # time increment between outputs
 file_type   = hdf5
 variable    = user_out_var  # (or ``uov''; user-defined output variables)
 dt          = 31.4
-ghost_zones = 0             # 1 == include ghost zones in output
+ghost_zones = 0 # 1            # 1 == include ghost zones in output
 
 <time>
 cfl_number  = 0.3       # The Courant, Friedrichs, & Lewy (CFL) Number
@@ -35,23 +35,23 @@ xorder      = 2         # order of spatial reconstruction
 ncycle_out  = 100         # interval for stdout summary info
 
 <mesh> # (x1,x2,x3) = (R, theta, phi)
-nx1         = 256       # Number of zones in X1-direction
-x1min       = 0.3       # minimum value of X1
-x1max       = 3.68       # 2.0       # maximum value of X1
+nx1         = 128 # 256       # Number of zones in X1-direction
+x1min       = 0.3 # 0.5       # minimum value of X1
+x1max       = 3.68 # 3.0       # 2.0       # maximum value of X1
 ix1_bc      = user      # Inner-X1 boundary condition flag
 ox1_bc      = user      # Outer-X1 boundary condition flag
 # for logarithmic spacing, use x1rat = (x1max/x1min)^(1/nx1)
 # (raises warning if >1.1)
-x1rat       = 1.009840625336 # 1.01977808858 # 1.01088928605         # non-uniform grid ratio
+x1rat       = 1.01977808858 # 1.009840625336 # 1.01088928605         # non-uniform grid ratio
 
-nx2         = 256        # Number of zones in X2-direction
+nx2         = 128 # 256        # Number of zones in X2-direction
 # theta half-width = 5c_s = 0.25; pi/2 = 1.5708; extend both limits by W_out
-x2min       = 1.2808    # 1.3208    # minimum value of X2
-x2max       = 1.8608    # 1.8208    # maximum value of X2
+x2min       = 1.2208 # 1.3308    # 1.3208    # minimum value of X2
+x2max       = 1.9208 # 1.8108    # 1.8208    # maximum value of X2
 ix2_bc      = reflecting      # Inner-X2 boundary condition flag
 ox2_bc      = reflecting      # Outer-X2 boundary condition flag
 
-nx3         = 260 # 130            # Number of zones in X3-direction
+nx3         = 384 # 260            # Number of zones in X3-direction
 x3min       = 0.0            # minimum value of X3
 x3max       = 6.2831853071795862  # maximum value of X3
 ix3_bc      = periodic       # Inner-X3 boundary condition flag
@@ -60,13 +60,13 @@ ox3_bc      = periodic       # Outer-X3 boundary condition flag
 # refinement  = None
 
 <meshblock>
-nx1        = 32 # 16        # Number of zones per MeshBlock in X1-direction
-nx2        = 32 # 16        # Number of zones per MeshBlock in X2-direction
-nx3        = 20 # 32        # Number of zones per MeshBlock in X3-direction
+nx1        = 16 # 32        # Number of zones per MeshBlock in X1-direction
+nx2        = 16 # 32        # Number of zones per MeshBlock in X2-direction
+nx3        = 32 # 20 # 20        # Number of zones per MeshBlock in X3-direction
 
 <hydro>
 gamma           = 1.66666667 # gamma = C_p/C_v
-iso_sound_speed = 0.05 # 0.05        # isothermal sound speed
+iso_sound_speed = 0.05 # 0.02        # isothermal sound speed
 dfloor          = 1.e-12        #  1.e-10
 pfloor          = 1.e-16        # 1.e-14       
 
@@ -81,40 +81,42 @@ rho0        = 1.0
 # p0_over_r0  = 0.0004
 dslope      = -3.0
 pslope      = 0.0
-r_in         = 0.5
-r_out         = 2.0
+# r_in         = 0.5
+# r_out         = 2.0
 xi_1        = 0.0
 xi_2        = 0.0
 
-## Outer disk inclination
-W_out       = 0.04 # 0.1 # 0.04 # 0. # note: I rotate disk around the y-axis in +z direction
+## Inner and outer disk inclinations
+fix_W_in = false # true
+W_in = 0.0 # only used if fix_W_in is true
+W_out       = 0.1 # 0.033 # 0.04 # 0. # note: I rotate disk around the y-axis in +z direction
 
 ## Shakura-Sunyaev viscosity parameter
 # alpha_0 = 0.001
-alpha_const = 0.01 # 0.2 # 0.05
+alpha_const = 0.01 # 0.019 # 0.2 # 0.05
 
 ## params for custom initial gap profile
 gap_file = "gap_Profile.dat"
-use_gap = false
+use_gap = true
 
 ## params for "basic" gap profile
 R_gap = 1.0 # center of gap
 Delta_gap = 0.1 # half-width of gap
-depth_gap = 1.0 # 2.0 # depth of gap
+# depth_gap = 1.0 # 2.0 # depth of gap
 
 ## planet parameters
-q = 0. # 1.e-3 # 0.002 # mass ratio
+q = 1.e-3 # 1.e-3 # 0.002 # mass ratio
 b = 0.03 # 0.05 # gravitational softening radius
 
 ## wave-killing zone parameters
-r_in = 0.3
-r_out = 3.68
-r_iwkz = 0. # 0.46
-r_owkz = 10. # 3.0
+r_in = 0.3 # 0.5
+r_out = 3.68 # 3.0
+r_iwkz = 0.46 # 0.
+r_owkz = 3.0 # 10.
 tau_coeff = 0.0333 # 1. # 0.2  # damping timescale tau = tau_coeff / Omega_K
 
-## below params are for the more complex gap profile
-# depth_gap = 19.0
+## below params are for Jiaru's gap profile
+depth_gap = 19.0
 r_gap_a     = 1.0
 r_gap_b     = 2.0
 del_a       = 0.1

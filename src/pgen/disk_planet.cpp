@@ -72,7 +72,7 @@ Real gap_from_Table(Real r);
 namespace {
 // problem parameters which are useful to make global to this file
 Real gm0, r0, rho0, dslope, p0_over_r0, pslope, gamma_gas;
-Real R_gap, Delta_gap, depth_gap; // gapped density profile parameters
+// Real R_gap, Delta_gap, depth_gap; // gapped density profile parameters
 Real dfloor;
 Real Omega0;
 Real alpha_const; // alpha viscosity parameter
@@ -92,7 +92,9 @@ Real r_iwkz, r_owkz;
 // coefficient on damping timescale (tau)
 Real tau_coeff;
 
-// parameters relevant to tilt profile 
+// parameters relevant to tilt profile
+bool fix_W_in;
+Real W_in; // inner inclination 
 Real W_out; // outer inclination of disk
 // variables used for calculating Lhat
 Real N_mbs; // (global) number of MeshBlocks in the sim
@@ -106,6 +108,9 @@ std::vector<Real> gap_table_r;
 std::vector<Real> gap_table_val;
 std::string gap_file;
 bool use_gap;
+// parameters for Jiaru's gap profile
+Real r_gap_a, r_gap_b, del_a, del_b, depth_gap;
+bool run_jiaru_type; // replicate one of Jiaru's sims
 } 
 
 // User-defined boundary conditions for disk simulations
@@ -158,10 +163,10 @@ void Mesh::InitUserMeshData(ParameterInput *pin) {
   rho0 = pin->GetReal("problem","rho0");
   dslope = pin->GetOrAddReal("problem","dslope",0.0);
 
-  // Get parameters for density profile
-  R_gap     =  pin->GetOrAddReal("problem","R_gap",r0);
-  depth_gap = pin->GetOrAddReal("problem","depth_gap",1.0); // default is no gap
-  Delta_gap = pin->GetOrAddReal("problem","Delta_gap",0.1);
+  // Get parameters for Gaussian (or "basic") density profile
+  // R_gap     =  pin->GetOrAddReal("problem","R_gap",r0);
+  // depth_gap = pin->GetOrAddReal("problem","depth_gap",1.0); // default is no gap
+  // Delta_gap = pin->GetOrAddReal("problem","Delta_gap",0.1);
 
   // Get parameter for viscosity
   alpha_const = pin->GetReal("problem","alpha_const");
@@ -198,6 +203,8 @@ void Mesh::InitUserMeshData(ParameterInput *pin) {
   r_out = pin->GetOrAddReal("problem", "r_out", 2.0);
 
   // variables for setting boundary conditions
+  fix_W_in = pin->GetOrAddBoolean("problem", "fix_W_in", false); 
+  W_in = pin->GetOrAddReal("problem", "W_in", 0.0);
   W_out = pin->GetOrAddReal("problem", "W_out", 0.0);
   L_in[0] = -std::sin(W_out);
   L_in[2] = std::cos(W_out); 
@@ -206,7 +213,14 @@ void Mesh::InitUserMeshData(ParameterInput *pin) {
 
   gap_file  = pin->GetOrAddString("problem", "gap_profile_file", "gap_Profile.dat");
   use_gap = pin->GetOrAddBoolean("problem", "use_gap", false);
+  run_jiaru_type = pin->GetOrAddBoolean("problem", "run_jiaru_type", false);
 
+  // parameters for Jiaru's gap profile
+  r_gap_a   = pin->GetOrAddReal("problem","r_gap_a",1.0);
+  r_gap_b   = pin->GetOrAddReal("problem","r_gap_b",2.0);
+  del_a     = pin->GetOrAddReal("problem","del_a",0.1);
+  del_b     = pin->GetOrAddReal("problem","del_b",0.2);
+  depth_gap = pin->GetOrAddReal("problem","depth_gap",19.0);
   // used for debugging Lhat calculation
  // num_inner_cells = 0;
  // M_in = 0;
@@ -293,8 +307,10 @@ void MeshBlock::ProblemGenerator(ParameterInput *pin) {
 
 	// W_in = 0;
 	// set tilt at this radius
-	//W_r = (W_out-W_in)/(r_out-r_in) * (r-r_in) + W_in; // linear W(r)
-	W_r = W_out; // flat, inclined plate
+	if (run_jiaru_type)
+	    W_r = (W_out-W_in)/(r_out-r_in) * (r-r_in) + W_in; // linear W(r)
+	else
+	    W_r = W_out; // flat, inclined plate
 	// tilted version
 	if (std::cos(phi) > 0) { // x > 0
 	    // eg, midplane at theta=80 if W_r=10 deg
@@ -311,7 +327,10 @@ void MeshBlock::ProblemGenerator(ParameterInput *pin) {
         GetDenVelTilted(r, theta, phi, W_r, den, vr, vtheta, vphi);
 	
 	// apply gap profile
-	gap_R = gap_from_Table(r); // try initializing Sigma using 2D result
+	if (!run_jiaru_type) {
+	    // if not using Jiaru's gap, try initializing Sigma using 2D result
+	    gap_R = gap_from_Table(r);
+	}
 	if (use_gap)
 	    den /= gap_R; 
 
@@ -1043,9 +1062,13 @@ void GetCylCoord(Coordinates *pco,Real &rad,Real &phi,Real &z,int i,int j,int k)
 //! background state helpers: gap shape
 //
 Real gapProfile(const Real rad, const Real phi, const Real z) {
-    Real r_polar = rad; //  std::sqrt(rad*rad+z*z);
-    Real exponent = -std::pow((r_polar - R_gap), 2) / (2 * std::pow(Delta_gap, 2));
-    return 1 + (depth_gap - 1) * std::exp(exponent);
+    Real r_polar = rad; //  std::sqrt(rad*rad+z*z); 
+    // Jiaru's gap profile
+    Real gap_func = std::tanh((r_polar-r_gap_a)/del_a) - std::tanh((r_polar-r_gap_b)/del_b);
+    return 1 + 0.5*(depth_gap - 1.0) * gap_func;
+    
+    // Real exponent = -std::pow((r_polar - R_gap), 2) / (2 * std::pow(Delta_gap, 2));
+    // return 1 + (depth_gap - 1) * std::exp(exponent);
 }
 
 //----------------------------------------------------------------------------------------
@@ -1175,7 +1198,12 @@ void DiskInnerX1(MeshBlock *pmb,Coordinates *pco, AthenaArray<Real> &prim, FaceF
 
           //GetCylCoord(pco,rad_gh,phi,z_gh,il-i,j,k);
           //GetCylCoord(pco,rad,phi,z,il,j,k); 
-	
+	  
+  	  if (fix_W_in) {
+	  	L_in[0] = -std::sin(W_in);
+		L_in[1] = 0.0;
+		L_in[2] = std::cos(W_in);
+	  }	  
 	  GetZfromL(r_gh, theta, phi, L_in, z_gh);
           //rad_gh = std::sqrt(r_gh*r_gh - z_gh*z_gh);
 	  W_in = std::asin(-L_in[0] / L_in[2]); // arcsin(-L_x/L_z)
@@ -1211,8 +1239,16 @@ void DiskInnerX1(MeshBlock *pmb,Coordinates *pco, AthenaArray<Real> &prim, FaceF
 	  RotateAroundY(vx, vy, vz, W_in);
 	  VelCartToSph(theta, phi, vx, vy, vz, vr_, vtheta_, vphi_); 
 
-          prim(IDN,k,j,il-i) = prim(IDN,k,j,il) * // den_gh;
-	     DenProfileCyl(r_gh,phi,z_gh)/DenProfileCyl(r_ac,phi,z_ac); // assume r~R
+	  if (run_jiaru_type) {
+  	  // hold density to a fixed value
+	  // (we can change the vr, vtheta, and vphi variables bc they aren't needed anymore) 	  
+	      GetDenVelTilted(r_gh, theta, phi, W_in, den_gh, vr, vtheta, vphi);
+              prim(IDN,k,j,il-i) = den_gh; 
+	  }
+	  else {
+              prim(IDN,k,j,il-i) = prim(IDN,k,j,il) * // den_gh;
+	         DenProfileCyl(r_gh,phi,z_gh)/DenProfileCyl(r_ac,phi,z_ac); // assume r~R
+	  }
 	  // vel = VelProfileCyl(rad,phi,z);
           if (pmb->porb->orbital_advection_defined)
             vel -= vK(pmb->porb, pco->x1v(il-i), pco->x2v(j), pco->x3v(k));
