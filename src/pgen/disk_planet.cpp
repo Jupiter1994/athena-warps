@@ -314,7 +314,9 @@ void MeshBlock::ProblemGenerator(ParameterInput *pin) {
 	// tilted version
 	if (std::cos(phi) > 0) { // x > 0
 	    // eg, midplane at theta=80 if W_r=10 deg
-	    gap_R = gapProfile(r,phi,r*cos(theta+W_r)); 
+	    // TODO: switch sign on W_r's once I change the direction of RotateAroundY
+              // to match Jiaru
+            gap_R = gapProfile(r,phi,r*cos(theta+W_r)); 
 	    // debugging vphi calculation for i=0
 	    vel = VelProfileCyl(r,phi,r*cos(theta+W_r));
 	} else {
@@ -1219,6 +1221,8 @@ void DiskInnerX1(MeshBlock *pmb,Coordinates *pco, AthenaArray<Real> &prim, FaceF
 	  RotateAroundY(vx, vy, vz, -W_in);
 	  if (std::cos(phi) > 0) { // x > 0
               // eg, theta=70 deg rotated by -10 deg goes to theta=80 deg
+	      // TODO: switch sign on W_in's once I change the direction of RotateAroundY
+              // to match Jiaru
 	      VelCartToSph(theta+W_in, phi, vx, vy, vz, vr_, vtheta_, vphi_);
 	  }
 	  else { // x < 0
@@ -1230,6 +1234,8 @@ void DiskInnerX1(MeshBlock *pmb,Coordinates *pco, AthenaArray<Real> &prim, FaceF
 	  vphi_ *= std::pow(r_gh/r_ac,-0.5);
 	  // rotate ghost velocity vector to sim frame
 	  if (std::cos(phi) > 0) { // x > 0
+	      // TODO: switch sign on W_in's once I change the direction of RotateAroundY
+              // to match Jiaru
               VelSphToCart(theta+W_in, phi, vr_, vtheta_, vphi_, vx, vy, vz);
 	  }
           else { // x < 0
@@ -1276,6 +1282,8 @@ void DiskOuterX1(MeshBlock *pmb,Coordinates *pco, AthenaArray<Real> &prim, FaceF
   Real r, theta; // polar coordinates
   Real den, vel;
   Real den_gh, vr, vtheta, vphi; // used in spherical case
+  Real vr_, vtheta_, vphi_; // velocity spherical components in disk/midplane frame
+  Real vx, vy, vz; // (Cartesian) ghost velocity
   Real vK_gh; // Keplerian velocity in ghost cell
   Real z_over_H; // z/H (used if coord sys is spherical)
   Real tau; // local damping timescale for wave-killing
@@ -1317,19 +1325,51 @@ void DiskOuterX1(MeshBlock *pmb,Coordinates *pco, AthenaArray<Real> &prim, FaceF
           r_ac = pco->x1v(iu); 
           //rad_gh = std::sqrt(r_gh*r_gh - z_gh*z_gh);
           r_gh = pco->x1v(iu+i);
-          GetZfromL(r_gh, theta, phi, L_out, z_gh);
+          // GetZfromL(r_gh, theta, phi, L_out, z_gh);
 	  //rad_gh = std::sqrt(r_gh*r_gh - z_gh*z_gh);
 
+	  /* get ghost zone density  */
           GetDenVelTilted(r_gh, theta, phi, W_out, den_gh, vr, vtheta, vphi);
-
 	  prim(IDN,k,j,iu+i) = den_gh; // DenProfileCyl(rad_gh,phi,z_gh); //  hold the outer rho fixed
-	  // vel = VelProfileCyl(rad,phi,z);
+	  
           if (pmb->porb->orbital_advection_defined)
             vel -= vK(pmb->porb, pco->x1v(iu+i), pco->x2v(j), pco->x3v(k));
 	  
-	  prim(IM1,k,j,iu+i) = prim(IM1,k,j,iu) * std::pow(r_gh/r_ac,-0.5);
-	  prim(IM2,k,j,iu+i) = prim(IM2,k,j,iu) * std::pow(r_gh/r_ac,-0.5);
-	  prim(IM3,k,j,iu+i) = prim(IM3,k,j,iu) * std::pow(r_gh/r_ac,-0.5);
+	  /* get ghost zone velocity */
+	  vr = prim(IM1,k,j,iu);
+	  vtheta = prim(IM2,k,j,iu);
+	  vphi = prim(IM3,k,j,iu);
+	  VelSphToCart(theta, phi, vr, vtheta, vphi, vx, vy, vz);
+	  // convert sim-frame active velocity to midplane-frame vel
+	  RotateAroundY(vx, vy, vz, -W_out);
+	  if (std::cos(phi) > 0) { // x > 0
+              // eg, theta=70 deg rotated by -10 deg goes to theta=80 deg
+	      // TODO: switch sign on W_out's once I change the direction of RotateAroundY
+	      // to match Jiaru
+	      VelCartToSph(theta+W_out, phi, vx, vy, vz, vr_, vtheta_, vphi_);
+	  }
+	  else { // x < 0
+	      VelCartToSph(theta-W_out, phi, vx, vy, vz, vr_, vtheta_, vphi_);
+          } 
+	  // extrapolate ghost cell values in midplane frame
+	  vr_ *= std::pow(r_gh/r_ac,-0.5);
+          vtheta_ *= std::pow(r_gh/r_ac,-0.5);
+	  vphi_ *= std::pow(r_gh/r_ac,-0.5);
+	  // convert midplane-frame ghost vel back to sim frame
+	  if (std::cos(phi) > 0) { // x > 0
+		// TODO: switch sign on W_out's once I change the direction of RotateAroundY
+              // to match Jiaru
+              VelSphToCart(theta+W_out, phi, vr_, vtheta_, vphi_, vx, vy, vz);
+	  }
+          else { // x < 0
+              VelSphToCart(theta-W_out, phi, vr_, vtheta_, vphi_, vx, vy, vz);
+	  }
+	  RotateAroundY(vx, vy, vz, W_out);
+	  VelCartToSph(theta, phi, vx, vy, vz, vr_, vtheta_, vphi_); 
+
+	  prim(IM1,k,j,iu+i) = vr_;
+	  prim(IM2,k,j,iu+i) = vtheta_;
+	  prim(IM3,k,j,iu+i) = vphi_;
 	  // v_r determined by steady-state accretion, not GetDenVelTilted
           //prim(IM1,k,j,iu+i) = VrProfileCyl(r_gh,phi,z_gh); // prim(IM1,k,j,iu) * std::pow(r_gh/r_ac,0.5); // v_r; assume R~r
 	  //prim(IM2,k,j,iu+i) = vtheta; // 0.0; // v_theta

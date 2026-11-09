@@ -4,7 +4,7 @@ reference =
 configure = --prob=disk_planet --coord=spherical_polar
 
 <job>
-problem_id  = /scratch/phn2956/disk-planet10b/disk      # problem ID: basename of output filenames
+problem_id  = /scratch/phn2956/disk-planet10d/disk      # problem ID: basename of output filenames
 
 <output1> 
 file_type   = hdf5      # default: vtk output
@@ -112,8 +112,8 @@ b = 0.03 # 0.05 # gravitational softening radius
 ## wave-killing zone parameters
 r_in = 0.5
 r_out = 3.0
-r_iwkz = 0.
-r_owkz = 10.
+r_iwkz = 0. # inner wkz edge (if <r_in, no inner wkz)
+r_owkz = 10. # outer wkz edge (if >r_out, no outer wkz)
 tau_coeff = 0.0333 # 1. # 0.2  # damping timescale tau = tau_coeff / Omega_K
 
 ## below params are for Jiaru's gap profile
